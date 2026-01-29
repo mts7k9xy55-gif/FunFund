@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Create a new profile
+// Create a new profile with initial balance
 export const create = mutation({
   args: {
     userId: v.string(),
@@ -10,11 +10,14 @@ export const create = mutation({
     avatarUrl: v.optional(v.string()),
     email: v.optional(v.string()),
     bio: v.optional(v.string()),
+    initialBalance: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const { initialBalance, ...profileData } = args;
     const profileId = await ctx.db.insert("profiles", {
-      ...args,
+      ...profileData,
+      balance: initialBalance ?? 0,
       createdAt: now,
       updatedAt: now,
     });
