@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // User profiles with virtual wallet balance
+  // User profiles with virtual wallet balance and credibility
   profiles: defineTable({
     userId: v.string(), // Clerk or other auth provider user ID
     username: v.optional(v.string()),
@@ -11,11 +11,15 @@ export default defineSchema({
     email: v.optional(v.string()),
     bio: v.optional(v.string()),
     balance: v.number(), // Virtual wallet balance
+    credibilityScore: v.number(), // 信憑性スコア（実行実績に基づく）
+    completedTasksCount: v.number(), // 完了したタスク数
+    totalEarnings: v.number(), // 累計報酬額
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"])
+    .index("by_credibilityScore", ["credibilityScore"]),
 
   // Funding proposals
   proposals: defineTable({
@@ -71,11 +75,13 @@ export default defineSchema({
   transactions: defineTable({
     profileId: v.id("profiles"),
     proposalId: v.optional(v.id("proposals")), // Only for contribution transactions
+    taskId: v.optional(v.id("tasks")), // For task reward transactions
     type: v.union(
       v.literal("deposit"), // チャージ（入金）
       v.literal("withdrawal"), // 出金
       v.literal("contribution"), // 支援（拠出）
-      v.literal("refund") // 返金
+      v.literal("refund"), // 返金
+      v.literal("task_reward") // タスク報酬
     ),
     amount: v.number(), // Positive for deposits, negative for withdrawals/contributions
     balanceBefore: v.number(),
@@ -85,6 +91,75 @@ export default defineSchema({
   })
     .index("by_profileId", ["profileId"])
     .index("by_proposalId", ["proposalId"])
+    .index("by_taskId", ["taskId"])
     .index("by_type", ["type"])
     .index("by_profileId_createdAt", ["profileId", "createdAt"]),
+
+  // Tasks within proposals (Task-based Funding)
+  tasks: defineTable({
+    proposalId: v.id("proposals"),
+    creatorId: v.id("profiles"), // Who created the task (usually proposal author)
+    title: v.string(),
+    description: v.string(),
+    budget: v.number(), // 予算（報酬）
+    assigneeId: v.optional(v.id("profiles")), // Who is assigned to execute
+    status: v.union(
+      v.literal("open"), // 募集中
+      v.literal("assigned"), // 担当者決定
+      v.literal("in_progress"), // 実行中
+      v.literal("submitted"), // 完了報告済み
+      v.literal("approved"), // 承認済み
+      v.literal("rejected"), // 却下
+      v.literal("cancelled") // キャンセル
+    ),
+    deadline: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_proposalId", ["proposalId"])
+    .index("by_assigneeId", ["assigneeId"])
+    .index("by_status", ["status"])
+    .index("by_creatorId", ["creatorId"]),
+
+  // Task submissions (Proof of Execution)
+  task_submissions: defineTable({
+    taskId: v.id("tasks"),
+    executorId: v.id("profiles"), // Who submitted the completion report
+    description: v.string(), // 完了報告の説明
+    proofUrl: v.optional(v.string()), // 証拠のURL（画像、ドキュメントなど）
+    status: v.union(
+      v.literal("pending"), // 審査待ち
+      v.literal("approved"), // 承認
+      v.literal("rejected") // 却下
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_taskId", ["taskId"])
+    .index("by_executorId", ["executorId"])
+    .index("by_status", ["status"]),
+
+  // Task approvals (supporter verification)
+  task_approvals: defineTable({
+    submissionId: v.id("task_submissions"),
+    approverId: v.id("profiles"), // 支援者（承認者）
+    approved: v.boolean(),
+    comment: v.optional(v.string()),
+    rating: v.optional(v.number()), // 1-5 rating for executor performance
+    createdAt: v.number(),
+  })
+    .index("by_submissionId", ["submissionId"])
+    .index("by_approverId", ["approverId"]),
+
+  // Execution records for credibility (Skill-based Credibility)
+  execution_records: defineTable({
+    executorId: v.id("profiles"),
+    taskId: v.id("tasks"),
+    submissionId: v.id("task_submissions"),
+    rating: v.number(), // Average rating from approvers
+    rewardAmount: v.number(), // How much was earned
+    completedAt: v.number(),
+  })
+    .index("by_executorId", ["executorId"])
+    .index("by_taskId", ["taskId"]),
 });

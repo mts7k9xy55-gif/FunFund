@@ -11,6 +11,7 @@
 import type * as evaluations from "../evaluations.js";
 import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
+import type * as tasks from "../tasks.js";
 import type * as transactions from "../transactions.js";
 
 import type {
@@ -23,6 +24,7 @@ declare const fullApi: ApiFromModules<{
   evaluations: typeof evaluations;
   profiles: typeof profiles;
   proposals: typeof proposals;
+  tasks: typeof tasks;
   transactions: typeof transactions;
 }>;
 
