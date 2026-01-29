@@ -1,11 +1,11 @@
 # FunFund
 
-A crowdfunding platform built with Next.js, Supabase, and Vercel.
+A crowdfunding platform with weighted evaluation system, built with Next.js and Convex.
 
 ## Tech Stack
 
 - **Frontend**: Next.js 16 with App Router, TypeScript, Tailwind CSS
-- **Backend/Database**: Supabase (PostgreSQL with Row Level Security)
+- **Backend/Database**: Convex (real-time backend with automatic TypeScript types)
 - **Deployment**: Vercel with GitHub Actions CI/CD
 
 ## Getting Started
@@ -14,7 +14,7 @@ A crowdfunding platform built with Next.js, Supabase, and Vercel.
 
 - Node.js 20+
 - npm
-- Supabase account
+- Convex account
 - Vercel account
 
 ### Environment Setup
@@ -24,22 +24,23 @@ A crowdfunding platform built with Next.js, Supabase, and Vercel.
    cp .env.local.example .env.local
    ```
 
-2. Fill in your Supabase credentials in `.env.local`:
+2. Fill in your Convex deployment URL in `.env.local`:
    ```
-   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   NEXT_PUBLIC_CONVEX_URL=your-convex-deployment-url
    ```
 
-### Database Setup
+### Convex Setup
 
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Run the migration file located at `supabase/migrations/00001_initial_schema.sql` in the Supabase SQL Editor
+1. Create a Convex account at [convex.dev](https://convex.dev)
+2. Run `npx convex dev` to initialize and deploy your Convex functions
+3. The schema will be automatically deployed
 
 ### Development
 
 ```bash
 npm install
-npm run dev
+npx convex dev  # Start Convex in development mode (in a separate terminal)
+npm run dev     # Start Next.js development server
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser.
@@ -50,41 +51,52 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 src/
 ├── app/              # Next.js App Router pages
 ├── lib/
-│   └── supabase/     # Supabase client configuration
-│       ├── client.ts # Browser client
-│       └── server.ts # Server client
-├── types/
-│   └── database.ts   # TypeScript types for database
-└── middleware.ts     # Auth middleware
+│   └── convex.tsx    # Convex client provider
+convex/
+├── schema.ts         # Database schema definition
+├── profiles.ts       # Profile queries and mutations
+├── proposals.ts      # Proposal queries and mutations
+└── evaluations.ts    # Evaluation queries and mutations with weighted scoring
 ```
 
 ## Database Schema
 
 The application uses three main tables:
 
-- **profiles**: User profiles extending Supabase auth
-- **projects**: Crowdfunding campaigns/projects
-- **contributions**: Donations to projects
+- **profiles**: User profiles with authentication integration
+- **proposals**: Funding proposals/campaigns
+- **evaluations**: Weighted evaluations for proposals with 5 criteria (innovation, feasibility, impact, team, presentation)
+
+### Weighted Scoring System
+
+Each evaluation includes scores (1-5) and weights for:
+- Innovation (革新性)
+- Feasibility (実現可能性)
+- Impact (社会的インパクト)
+- Team (チーム力)
+- Presentation (プレゼンテーション)
+
+The weighted average is calculated automatically in Convex and proposals can be ranked by their average scores.
 
 ## Deployment
 
 ### Vercel Setup
 
 1. Connect your GitHub repository to Vercel
-2. Add the following secrets to your GitHub repository:
-   - `VERCEL_TOKEN`: Your Vercel API token
-   - `VERCEL_ORG_ID`: Your Vercel organization ID
-   - `VERCEL_PROJECT_ID`: Your Vercel project ID
-   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
+2. Add the following environment variables:
+   - `NEXT_PUBLIC_CONVEX_URL`: Your Convex deployment URL
+
+### Convex Deployment
+
+```bash
+npx convex deploy
+```
 
 ### CI/CD
 
 The project includes GitHub Actions workflows for:
 - **CI**: Runs lint and build checks on every push and PR
 - **Vercel Deploy**: Automatic deployments to Vercel
-  - Preview deployments for PRs
-  - Production deployments for main branch
 
 ## License
 
