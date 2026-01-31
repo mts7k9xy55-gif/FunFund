@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // User profiles
+  // User profiles with virtual wallet balance
   profiles: defineTable({
     userId: v.string(), // Clerk or other auth provider user ID
     username: v.optional(v.string()),
@@ -10,6 +10,7 @@ export default defineSchema({
     avatarUrl: v.optional(v.string()),
     email: v.optional(v.string()),
     bio: v.optional(v.string()),
+    balance: v.number(), // Virtual wallet balance
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -65,4 +66,25 @@ export default defineSchema({
     .index("by_proposalId", ["proposalId"])
     .index("by_evaluatorId", ["evaluatorId"])
     .index("by_proposalId_evaluatorId", ["proposalId", "evaluatorId"]),
+
+  // Transactions for virtual wallet (deposits, withdrawals, contributions)
+  transactions: defineTable({
+    profileId: v.id("profiles"),
+    proposalId: v.optional(v.id("proposals")), // Only for contribution transactions
+    type: v.union(
+      v.literal("deposit"), // チャージ（入金）
+      v.literal("withdrawal"), // 出金
+      v.literal("contribution"), // 支援（拠出）
+      v.literal("refund") // 返金
+    ),
+    amount: v.number(), // Positive for deposits, negative for withdrawals/contributions
+    balanceBefore: v.number(),
+    balanceAfter: v.number(),
+    description: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_profileId", ["profileId"])
+    .index("by_proposalId", ["proposalId"])
+    .index("by_type", ["type"])
+    .index("by_profileId_createdAt", ["profileId", "createdAt"]),
 });
