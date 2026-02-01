@@ -9,8 +9,10 @@
  */
 
 import type * as evaluations from "../evaluations.js";
+import type * as items from "../items.js";
 import type * as profiles from "../profiles.js";
 import type * as proposals from "../proposals.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -20,8 +22,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   evaluations: typeof evaluations;
+  items: typeof items;
   profiles: typeof profiles;
   proposals: typeof proposals;
+  users: typeof users;
 }>;
 
 /**

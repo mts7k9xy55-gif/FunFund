@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-const FunFundApp = dynamic(() => import("@/components/FunFundApp"), {
+const FunFundApp = dynamic(() => import("@/components/NewFunFundApp"), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50">
