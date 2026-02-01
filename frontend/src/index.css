@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,58 +6,40 @@
 
 body {
     margin: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-        sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-    font-family:
-        source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 18px;
 }
 
 @layer base {
     :root {
-        /* FunFund Design System - Minimal & Light */
+        /* Immersive reading experience - larger, cleaner */
         --background: 0 0% 100%;
-        --foreground: 0 0% 10%;
+        --foreground: 0 0% 5%;
         
-        /* Subtle surfaces */
-        --surface: 0 0% 99%;
-        --surface-hover: 0 0% 97%;
+        --surface: 0 0% 98%;
+        --surface-hover: 0 0% 96%;
         
-        /* Borders - very light */
-        --border: 0 0% 94%;
-        --border-strong: 0 0% 88%;
+        --border: 0 0% 92%;
+        --border-strong: 0 0% 85%;
         
-        /* Text hierarchy */
-        --text-primary: 0 0% 10%;
-        --text-secondary: 0 0% 40%;
-        --text-tertiary: 0 0% 60%;
+        --text-primary: 0 0% 5%;
+        --text-secondary: 0 0% 35%;
+        --text-tertiary: 0 0% 55%;
         
-        /* Accent - minimal use */
         --accent: 220 70% 50%;
-        --accent-light: 220 70% 96%;
+        --accent-light: 220 70% 95%;
         
-        /* Gravity levels */
-        --flow: 0 0% 98%;        /* lightest - comments */
-        --do: 220 70% 98%;       /* medium - proposals */
-        --commit: 45 100% 98%;   /* heavy - evaluations */
+        /* Evaluation colors */
+        --eval-positive: 142 60% 50%;
+        --eval-neutral: 220 10% 50%;
+        --eval-negative: 0 60% 50%;
         
-        /* Status colors - subtle */
-        --positive: 142 50% 50%;
-        --neutral: 220 10% 50%;
-        --negative: 0 50% 50%;
-        
-        /* Shadows - minimal */
-        --shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.03);
-        --shadow-card: 0 2px 8px 0 rgb(0 0 0 / 0.04);
-        
-        /* AI boundary */
-        --ai-border: 280 60% 90%;
-        --ai-bg: 280 60% 98%;
+        /* Credibility score */
+        --credibility-high: 45 100% 50%;
+        --credibility-medium: 220 70% 50%;
+        --credibility-low: 0 0% 60%;
         
         --radius: 0.5rem;
     }
@@ -73,10 +55,8 @@ code {
 }
 
 @layer components {
-    /* Custom scrollbar - minimal */
     .minimal-scrollbar::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
     }
     
     .minimal-scrollbar::-webkit-scrollbar-track {
@@ -85,14 +65,13 @@ code {
     
     .minimal-scrollbar::-webkit-scrollbar-thumb {
         background: hsl(var(--border));
-        border-radius: 3px;
+        border-radius: 4px;
     }
     
     .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
         background: hsl(var(--border-strong));
     }
     
-    /* Gravity animations */
     @keyframes float-in {
         from {
             opacity: 0;
@@ -109,52 +88,8 @@ code {
     }
 }
 
-@layer utilities {
-    .text-weight-light {
-        @apply text-sm font-light text-text-tertiary;
-    }
-    
-    .text-weight-normal {
-        @apply text-base font-normal text-text-secondary;
-    }
-    
-    .text-weight-medium {
-        @apply text-lg font-medium text-text-primary;
-    }
-    
-    .text-weight-heavy {
-        @apply text-xl font-semibold text-text-primary;
-    }
-}
-
 @layer base {
     [data-debug-wrapper="true"] {
         display: contents !important;
-    }
-
-    [data-debug-wrapper="true"] > * {
-        margin-left: inherit;
-        margin-right: inherit;
-        margin-top: inherit;
-        margin-bottom: inherit;
-        padding-left: inherit;
-        padding-right: inherit;
-        padding-top: inherit;
-        padding-bottom: inherit;
-        column-gap: inherit;
-        row-gap: inherit;
-        gap: inherit;
-        border-left-width: inherit;
-        border-right-width: inherit;
-        border-top-width: inherit;
-        border-bottom-width: inherit;
-        border-left-style: inherit;
-        border-right-style: inherit;
-        border-top-style: inherit;
-        border-bottom-style: inherit;
-        border-left-color: inherit;
-        border-right-color: inherit;
-        border-top-color: inherit;
-        border-bottom-color: inherit;
     }
 }

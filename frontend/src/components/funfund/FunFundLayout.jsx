@@ -1,115 +1,86 @@
 import { useState } from "react";
-import LeftNav from "./LeftNav";
+import TopBar from "./TopBar";
 import DiscussionFeed from "./DiscussionFeed";
-import EvaluationPanel from "./EvaluationPanel";
 import CommentComposer from "./CommentComposer";
+import MenuDrawer from "./MenuDrawer";
 
 const FunFundLayout = () => {
-  const [activeCommunity, setActiveCommunity] = useState("design-thinking");
-  const [activeDiscussion, setActiveDiscussion] = useState("general");
   const [items, setItems] = useState(MOCK_ITEMS);
-  const [selectedProposal, setSelectedProposal] = useState(null);
-  const [showEvaluationPanel, setShowEvaluationPanel] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [activeSpace, setActiveSpace] = useState({ type: "public", id: "general" });
+  const [language, setLanguage] = useState("ja");
 
   const handleAddItem = (newItem) => {
-    setItems([...items, { ...newItem, id: Date.now().toString(), timestamp: new Date().toISOString() }]);
-  };
-
-  const handlePromoteToProposal = (commentId) => {
-    const comment = items.find(item => item.id === commentId);
-    if (!comment) return;
-
-    const proposal = {
-      id: Date.now().toString(),
-      type: "PROPOSAL",
-      author: comment.author,
-      title: comment.content.slice(0, 60) + (comment.content.length > 60 ? "..." : ""),
-      content: comment.content,
-      discussion: activeDiscussion,
+    const item = { 
+      ...newItem, 
+      id: Date.now().toString(), 
       timestamp: new Date().toISOString(),
-      promotedFrom: commentId
+      credibility: 75 // Mock credibility score
     };
-
-    setItems([...items, proposal]);
+    setItems([...items, item]);
   };
 
-  const handleSelectProposal = (proposalId) => {
-    setSelectedProposal(proposalId);
-    setShowEvaluationPanel(true);
-  };
-
-  const handleEvaluationSubmit = async (evaluation) => {
-    setShowEvaluationPanel(false);
-    
-    // Evaluation ceremony (handled in EvaluationPanel)
-    // After ceremony, add evaluation item and record
+  const handleEvaluate = (targetId, evaluation) => {
     const evaluationItem = {
-      ...evaluation,
       id: Date.now().toString(),
       type: "EVALUATION",
+      targetId,
+      author: "You",
+      vote: evaluation.vote,
+      stake: evaluation.stake,
+      reasoning: evaluation.reasoning,
       timestamp: new Date().toISOString(),
-      discussion: activeDiscussion
+      credibility: 75
     };
+    setItems([...items, evaluationItem]);
+  };
 
-    // Add evaluation record (1 line in feed)
-    const record = {
-      id: (Date.now() + 1).toString(),
-      type: "EVALUATION_RECORD",
-      author: evaluation.author,
-      targetId: evaluation.targetId,
+  const handleReply = (targetId, content) => {
+    const reply = {
+      id: Date.now().toString(),
+      type: "COMMENT",
+      targetId,
+      author: "You",
+      content,
       timestamp: new Date().toISOString(),
-      discussion: activeDiscussion
+      credibility: 75
     };
-
-    setItems([...items, evaluationItem, record]);
-    setSelectedProposal(null);
+    setItems([...items, reply]);
   };
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Top bar */}
-      <div className="h-12 border-b border-border flex items-center px-6 bg-surface">
-        <h1 className="text-sm font-semibold text-text-primary">FunFund</h1>
-        <div className="ml-auto text-sm text-text-secondary">
-          Community: {activeCommunity}
-        </div>
-      </div>
+      {/* Top Bar */}
+      <TopBar 
+        onMenuClick={() => setShowMenu(true)}
+        activeSpace={activeSpace}
+        language={language}
+      />
 
-      {/* Main Content - 3 Panes */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Nav */}
-        <LeftNav 
-          activeCommunity={activeCommunity}
-          activeDiscussion={activeDiscussion}
-          setActiveDiscussion={setActiveDiscussion}
-        />
-        
-        {/* Center Feed */}
+      {/* Main Feed - Full Width */}
+      <div className="flex-1 overflow-hidden">
         <DiscussionFeed 
           items={items}
-          activeDiscussion={activeDiscussion}
-          onPromoteToProposal={handlePromoteToProposal}
-          onSelectProposal={handleSelectProposal}
-          selectedProposal={selectedProposal}
+          onEvaluate={handleEvaluate}
+          onReply={handleReply}
+          language={language}
         />
-        
-        {/* Right Panel - Evaluation */}
-        {showEvaluationPanel && selectedProposal && (
-          <EvaluationPanel
-            proposal={items.find(item => item.id === selectedProposal)}
-            onSubmit={handleEvaluationSubmit}
-            onClose={() => {
-              setShowEvaluationPanel(false);
-              setSelectedProposal(null);
-            }}
-          />
-        )}
       </div>
       
       {/* Bottom Composer */}
       <CommentComposer 
         onSubmit={handleAddItem}
-        activeDiscussion={activeDiscussion}
+        language={language}
+      />
+
+      {/* Menu Drawer */}
+      <MenuDrawer
+        show={showMenu}
+        onClose={() => setShowMenu(false)}
+        activeSpace={activeSpace}
+        setActiveSpace={setActiveSpace}
+        language={language}
+        setLanguage={setLanguage}
       />
     </div>
   );
@@ -117,7 +88,7 @@ const FunFundLayout = () => {
 
 export default FunFundLayout;
 
-// Mock data
+// Mock data with credibility scores
 const MOCK_ITEMS = [
   {
     id: "1",
@@ -126,7 +97,7 @@ const MOCK_ITEMS = [
     content: "UIデザイン原則を明文化し、チーム全体で共有する仕組みを作りたい。デザインシステムのドキュメントとして整備し、一貫性のある開発を実現する。",
     title: "UIデザイン原則の策定",
     timestamp: new Date(Date.now() - 7200000).toISOString(),
-    discussion: "general"
+    credibility: 85
   },
   {
     id: "2",
@@ -135,32 +106,28 @@ const MOCK_ITEMS = [
     content: "デザイントークンの整備から始めるのが良いと思います。色、タイポグラフィ、スペーシングの3つを優先的に。",
     targetId: "1",
     timestamp: new Date(Date.now() - 6800000).toISOString(),
-    discussion: "general"
+    credibility: 78
   },
   {
     id: "3",
-    type: "COMMENT",
+    type: "EVALUATION",
     author: "Carol",
-    content: "FigmaのVariablesを使えば、デザインとコードの一貫性を保ちやすくなります。",
     targetId: "1",
+    vote: "positive",
+    stake: 100,
+    reasoning: "技術的に実現可能で、チームの生産性向上に貢献する重要な提案です。",
     timestamp: new Date(Date.now() - 6600000).toISOString(),
-    discussion: "general"
+    credibility: 92
   },
   {
     id: "4",
-    type: "AI_RESPONSE",
-    author: "AI",
-    content: "デザイントークンの標準化は、Style DictionaryやTailwind CSS、CSS Variables（カスタムプロパティ）などのツールで実現できます。チームの技術スタックに合わせて選択すると良いでしょう。",
-    targetId: "2",
-    timestamp: new Date(Date.now() - 6400000).toISOString(),
-    discussion: "general"
-  },
-  {
-    id: "5",
-    type: "EVALUATION_RECORD",
+    type: "EVALUATION",
     author: "David",
-    targetId: "1",
-    timestamp: new Date(Date.now() - 6000000).toISOString(),
-    discussion: "general"
+    targetId: "3",
+    vote: "positive",
+    stake: 50,
+    reasoning: "Carolの判断に同意します。実績からも信頼できる評価だと考えます。",
+    timestamp: new Date(Date.now() - 6400000).toISOString(),
+    credibility: 65
   }
 ];
