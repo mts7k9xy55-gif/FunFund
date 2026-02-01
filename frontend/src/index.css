@@ -1,11 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
     margin: 0;
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
         "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
         sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -19,57 +20,135 @@ code {
 
 @layer base {
     :root {
+        /* Modern color palette for professional chat UI */
         --background: 0 0% 100%;
-        --foreground: 0 0% 3.9%;
+        --foreground: 220 13% 18%;
+        
+        /* Sidebar colors */
+        --sidebar: 220 18% 97%;
+        --sidebar-hover: 220 18% 93%;
+        --sidebar-active: 215 85% 96%;
+        --sidebar-foreground: 220 13% 28%;
+        
+        /* Card and surface */
         --card: 0 0% 100%;
-        --card-foreground: 0 0% 3.9%;
+        --card-foreground: 220 13% 18%;
+        
+        /* Popover */
         --popover: 0 0% 100%;
-        --popover-foreground: 0 0% 3.9%;
-        --primary: 0 0% 9%;
-        --primary-foreground: 0 0% 98%;
-        --secondary: 0 0% 96.1%;
-        --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 96.1%;
-        --muted-foreground: 0 0% 45.1%;
-        --accent: 0 0% 96.1%;
-        --accent-foreground: 0 0% 9%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 89.8%;
-        --input: 0 0% 89.8%;
-        --ring: 0 0% 3.9%;
-        --chart-1: 12 76% 61%;
-        --chart-2: 173 58% 39%;
-        --chart-3: 197 37% 24%;
-        --chart-4: 43 74% 66%;
-        --chart-5: 27 87% 67%;
+        --popover-foreground: 220 13% 18%;
+        
+        /* Primary brand color - professional blue */
+        --primary: 215 85% 55%;
+        --primary-foreground: 0 0% 100%;
+        --primary-hover: 215 85% 50%;
+        
+        /* Secondary */
+        --secondary: 220 18% 96%;
+        --secondary-foreground: 220 13% 28%;
+        --secondary-hover: 220 18% 92%;
+        
+        /* Muted */
+        --muted: 220 18% 96%;
+        --muted-foreground: 220 10% 46%;
+        
+        /* Accent for special states */
+        --accent: 215 85% 96%;
+        --accent-foreground: 215 85% 45%;
+        
+        /* Destructive */
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 0 0% 100%;
+        
+        /* Success color */
+        --success: 142 71% 45%;
+        --success-foreground: 0 0% 100%;
+        
+        /* Warning */
+        --warning: 38 92% 50%;
+        --warning-foreground: 0 0% 100%;
+        
+        /* Borders and inputs */
+        --border: 220 13% 91%;
+        --input: 220 13% 91%;
+        --ring: 215 85% 55%;
+        
+        /* Message colors */
+        --message-own: 215 85% 96%;
+        --message-other: 0 0% 98%;
+        --message-hover: 220 18% 95%;
+        
+        /* Radius */
         --radius: 0.5rem;
+        
+        /* Transitions */
+        --transition-smooth: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        --transition-bounce: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        
+        /* Shadows */
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     }
+    
     .dark {
-        --background: 0 0% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 0 0% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --popover: 0 0% 3.9%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 0 0% 9%;
-        --secondary: 0 0% 14.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14.9%;
-        --muted-foreground: 0 0% 63.9%;
-        --accent: 0 0% 14.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 14.9%;
-        --input: 0 0% 14.9%;
-        --ring: 0 0% 83.1%;
-        --chart-1: 220 70% 50%;
-        --chart-2: 160 60% 45%;
-        --chart-3: 30 80% 55%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
+        /* Dark mode color palette */
+        --background: 220 18% 12%;
+        --foreground: 220 13% 95%;
+        
+        /* Sidebar colors */
+        --sidebar: 220 18% 9%;
+        --sidebar-hover: 220 18% 14%;
+        --sidebar-active: 215 50% 20%;
+        --sidebar-foreground: 220 13% 85%;
+        
+        /* Card and surface */
+        --card: 220 18% 15%;
+        --card-foreground: 220 13% 95%;
+        
+        /* Popover */
+        --popover: 220 18% 15%;
+        --popover-foreground: 220 13% 95%;
+        
+        /* Primary */
+        --primary: 215 85% 58%;
+        --primary-foreground: 0 0% 100%;
+        --primary-hover: 215 85% 63%;
+        
+        /* Secondary */
+        --secondary: 220 18% 18%;
+        --secondary-foreground: 220 13% 90%;
+        --secondary-hover: 220 18% 22%;
+        
+        /* Muted */
+        --muted: 220 18% 18%;
+        --muted-foreground: 220 10% 60%;
+        
+        /* Accent */
+        --accent: 215 50% 22%;
+        --accent-foreground: 215 85% 75%;
+        
+        /* Destructive */
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 0 0% 100%;
+        
+        /* Success */
+        --success: 142 71% 45%;
+        --success-foreground: 0 0% 100%;
+        
+        /* Warning */
+        --warning: 38 92% 50%;
+        --warning-foreground: 0 0% 100%;
+        
+        /* Borders and inputs */
+        --border: 220 18% 22%;
+        --input: 220 18% 22%;
+        --ring: 215 85% 58%;
+        
+        /* Message colors */
+        --message-own: 215 50% 20%;
+        --message-other: 220 18% 18%;
+        --message-hover: 220 18% 20%;
     }
 }
 
@@ -79,6 +158,75 @@ code {
     }
     body {
         @apply bg-background text-foreground;
+    }
+}
+
+@layer components {
+    /* Custom scrollbar styling */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-border rounded-full;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-muted-foreground/50;
+    }
+    
+    /* Message animations */
+    @keyframes slideInMessage {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .message-enter {
+        animation: slideInMessage 0.2s ease-out;
+    }
+    
+    /* Pulse animation for typing indicator */
+    @keyframes pulse-dot {
+        0%, 100% {
+            opacity: 0.4;
+        }
+        50% {
+            opacity: 1;
+        }
+    }
+    
+    .typing-dot {
+        animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+    
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+}
+
+@layer utilities {
+    /* Transition utilities */
+    .transition-smooth {
+        transition: all var(--transition-smooth);
+    }
+    
+    .transition-bounce {
+        transition: all var(--transition-bounce);
     }
 }
 
