@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -20,135 +20,46 @@ code {
 
 @layer base {
     :root {
-        /* Modern color palette for professional chat UI */
+        /* FunFund Design System - Minimal & Light */
         --background: 0 0% 100%;
-        --foreground: 220 13% 18%;
+        --foreground: 0 0% 10%;
         
-        /* Sidebar colors */
-        --sidebar: 220 18% 97%;
-        --sidebar-hover: 220 18% 93%;
-        --sidebar-active: 215 85% 96%;
-        --sidebar-foreground: 220 13% 28%;
+        /* Subtle surfaces */
+        --surface: 0 0% 99%;
+        --surface-hover: 0 0% 97%;
         
-        /* Card and surface */
-        --card: 0 0% 100%;
-        --card-foreground: 220 13% 18%;
+        /* Borders - very light */
+        --border: 0 0% 94%;
+        --border-strong: 0 0% 88%;
         
-        /* Popover */
-        --popover: 0 0% 100%;
-        --popover-foreground: 220 13% 18%;
+        /* Text hierarchy */
+        --text-primary: 0 0% 10%;
+        --text-secondary: 0 0% 40%;
+        --text-tertiary: 0 0% 60%;
         
-        /* Primary brand color - professional blue */
-        --primary: 215 85% 55%;
-        --primary-foreground: 0 0% 100%;
-        --primary-hover: 215 85% 50%;
+        /* Accent - minimal use */
+        --accent: 220 70% 50%;
+        --accent-light: 220 70% 96%;
         
-        /* Secondary */
-        --secondary: 220 18% 96%;
-        --secondary-foreground: 220 13% 28%;
-        --secondary-hover: 220 18% 92%;
+        /* Gravity levels */
+        --flow: 0 0% 98%;        /* lightest - comments */
+        --do: 220 70% 98%;       /* medium - proposals */
+        --commit: 45 100% 98%;   /* heavy - evaluations */
         
-        /* Muted */
-        --muted: 220 18% 96%;
-        --muted-foreground: 220 10% 46%;
+        /* Status colors - subtle */
+        --positive: 142 50% 50%;
+        --neutral: 220 10% 50%;
+        --negative: 0 50% 50%;
         
-        /* Accent for special states */
-        --accent: 215 85% 96%;
-        --accent-foreground: 215 85% 45%;
+        /* Shadows - minimal */
+        --shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+        --shadow-card: 0 2px 8px 0 rgb(0 0 0 / 0.04);
         
-        /* Destructive */
-        --destructive: 0 72% 51%;
-        --destructive-foreground: 0 0% 100%;
+        /* AI boundary */
+        --ai-border: 280 60% 90%;
+        --ai-bg: 280 60% 98%;
         
-        /* Success color */
-        --success: 142 71% 45%;
-        --success-foreground: 0 0% 100%;
-        
-        /* Warning */
-        --warning: 38 92% 50%;
-        --warning-foreground: 0 0% 100%;
-        
-        /* Borders and inputs */
-        --border: 220 13% 91%;
-        --input: 220 13% 91%;
-        --ring: 215 85% 55%;
-        
-        /* Message colors */
-        --message-own: 215 85% 96%;
-        --message-other: 0 0% 98%;
-        --message-hover: 220 18% 95%;
-        
-        /* Radius */
         --radius: 0.5rem;
-        
-        /* Transitions */
-        --transition-smooth: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        --transition-bounce: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        
-        /* Shadows */
-        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    }
-    
-    .dark {
-        /* Dark mode color palette */
-        --background: 220 18% 12%;
-        --foreground: 220 13% 95%;
-        
-        /* Sidebar colors */
-        --sidebar: 220 18% 9%;
-        --sidebar-hover: 220 18% 14%;
-        --sidebar-active: 215 50% 20%;
-        --sidebar-foreground: 220 13% 85%;
-        
-        /* Card and surface */
-        --card: 220 18% 15%;
-        --card-foreground: 220 13% 95%;
-        
-        /* Popover */
-        --popover: 220 18% 15%;
-        --popover-foreground: 220 13% 95%;
-        
-        /* Primary */
-        --primary: 215 85% 58%;
-        --primary-foreground: 0 0% 100%;
-        --primary-hover: 215 85% 63%;
-        
-        /* Secondary */
-        --secondary: 220 18% 18%;
-        --secondary-foreground: 220 13% 90%;
-        --secondary-hover: 220 18% 22%;
-        
-        /* Muted */
-        --muted: 220 18% 18%;
-        --muted-foreground: 220 10% 60%;
-        
-        /* Accent */
-        --accent: 215 50% 22%;
-        --accent-foreground: 215 85% 75%;
-        
-        /* Destructive */
-        --destructive: 0 72% 51%;
-        --destructive-foreground: 0 0% 100%;
-        
-        /* Success */
-        --success: 142 71% 45%;
-        --success-foreground: 0 0% 100%;
-        
-        /* Warning */
-        --warning: 38 92% 50%;
-        --warning-foreground: 0 0% 100%;
-        
-        /* Borders and inputs */
-        --border: 220 18% 22%;
-        --input: 220 18% 22%;
-        --ring: 215 85% 58%;
-        
-        /* Message colors */
-        --message-own: 215 50% 20%;
-        --message-other: 220 18% 18%;
-        --message-hover: 220 18% 20%;
     }
 }
 
@@ -162,29 +73,30 @@ code {
 }
 
 @layer components {
-    /* Custom scrollbar styling */
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    /* Custom scrollbar - minimal */
+    .minimal-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
     }
     
-    .custom-scrollbar::-webkit-scrollbar-track {
+    .minimal-scrollbar::-webkit-scrollbar-track {
         background: transparent;
     }
     
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-border rounded-full;
+    .minimal-scrollbar::-webkit-scrollbar-thumb {
+        background: hsl(var(--border));
+        border-radius: 3px;
     }
     
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-muted-foreground/50;
+    .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--border-strong));
     }
     
-    /* Message animations */
-    @keyframes slideInMessage {
+    /* Gravity animations */
+    @keyframes float-in {
         from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(8px);
         }
         to {
             opacity: 1;
@@ -192,41 +104,26 @@ code {
         }
     }
     
-    .message-enter {
-        animation: slideInMessage 0.2s ease-out;
-    }
-    
-    /* Pulse animation for typing indicator */
-    @keyframes pulse-dot {
-        0%, 100% {
-            opacity: 0.4;
-        }
-        50% {
-            opacity: 1;
-        }
-    }
-    
-    .typing-dot {
-        animation: pulse-dot 1.4s ease-in-out infinite;
-    }
-    
-    .typing-dot:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-    
-    .typing-dot:nth-child(3) {
-        animation-delay: 0.4s;
+    .animate-float-in {
+        animation: float-in 0.2s ease-out;
     }
 }
 
 @layer utilities {
-    /* Transition utilities */
-    .transition-smooth {
-        transition: all var(--transition-smooth);
+    .text-weight-light {
+        @apply text-sm font-light text-text-tertiary;
     }
     
-    .transition-bounce {
-        transition: all var(--transition-bounce);
+    .text-weight-normal {
+        @apply text-base font-normal text-text-secondary;
+    }
+    
+    .text-weight-medium {
+        @apply text-lg font-medium text-text-primary;
+    }
+    
+    .text-weight-heavy {
+        @apply text-xl font-semibold text-text-primary;
     }
 }
 
