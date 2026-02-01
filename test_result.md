@@ -542,18 +542,21 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "5.0"
-  test_sequence: 5
+  version: "6.0"
+  test_sequence: 6
 
 test_plan:
   current_focus:
-    - "Redesigned Comment Composer - Discussion Quality Focus"
-    - "Redesigned Promote Comment to Proposal Feature"
-    - "Redesigned Evaluation Panel - Right Side"
-    - "Redesigned 3-Stage Evaluation Ceremony"
-    - "Redesigned Japanese UI Elements"
-    - "Redesigned Feed Items Hierarchy"
-    - "Redesigned Clean Minimal Design"
+    - "Full-Width Feed (No Left Sidebar)"
+    - "Larger Text Sizes (18px Base)"
+    - "Menu Drawer (Right Side)"
+    - "Universal Evaluate & Reply Buttons"
+    - "Fractal Structure"
+    - "Credibility Scores"
+    - "Inline Forms"
+    - "Evaluation Visual Style"
+    - "Comment Composer Functionality"
+    - "Space Switching Functionality"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -569,3 +572,5 @@ agent_communication:
     message: "ENHANCED COMMIT CEREMONY TESTING COMPLETED - ✅ CRITICAL CHANGE VERIFIED: Evaluations are NO LONGER visible in feed (David's evaluation completely hidden) ✅ Enhanced commit ceremony with multi-stage overlay working (preparing→committing→committed) ✅ Ephemeral experience achieved - no persistent visual record in feed ✅ Composer returns to Flow mode after ceremony ✅ All commit UI elements functional (vote selection, stake input, reasoning textarea). The enhanced ceremony creates the intended dramatic, irreversible decision moment with proper gravitas."
   - agent: "testing"
     message: "REDESIGNED FUNFUND UI TESTING COMPLETED - ✅ ALL CRITICAL NEW FEATURES WORKING PERFECTLY: 1) Comment Composer: 80px height (2-3 lines), Enter=new line, Ctrl+Enter=send, 5 emotions selector working 2) Promote Comment to Proposal: '議題にする' button appears on hover, creates new proposal cards 3) Evaluation Panel: Right-side panel with ✓/○/✗ votes, stake input, reasoning textarea, irreversibility warning 4) 3-Stage Ceremony: 準備→判断中→完了 with dramatic overlay, award icon, vote/stake display 5) Japanese UI: '議論'/'プロジェクト' sections, no hash symbols 6) Feed Hierarchy: PROPOSAL cards with shadow, COMMENT indented with left border, AI_RESPONSE purple tinted, EVALUATION_RECORD 1-line italic 7) Action Buttons: '議論する'/'判断する' on proposals. Discussion quality focus achieved with clean, minimal design and proper spacing. All features tested thoroughly and working flawlessly!"
+  - agent: "testing"
+    message: "REDESIGNED FUNFUND WITH FRACTAL EVALUATION SYSTEM TESTING COMPLETED - 🎉 ALL CRITICAL NEW FEATURES WORKING EXCELLENTLY: ✅ Full-Width Feed: No left sidebar, max-width-4xl centered layout ✅ Larger Text: 18px base font size ✅ Menu Drawer: Right-side with language switching (日本語/English), space switching (Public Board/DM/Groups) ✅ Universal Buttons: 返信 and 判断 buttons on EVERY item ✅ Fractal Structure: Evaluations can be evaluated, proper indentation, expand/collapse ✅ Credibility Scores: Color-coded (yellow 80+, blue 60-79, gray <60) ✅ Inline Forms: Reply and evaluation forms appear inline with cancel buttons ✅ Evaluation Style: Yellow background, vote indicators (✓/○/✗), stake amounts ✅ Comment Composer: Enter=new line, Cmd+Enter=send, functional send button ✅ Space Switching: Successfully tested DM space switching. Complete redesign successfully implemented with true fractal evaluation system!"
