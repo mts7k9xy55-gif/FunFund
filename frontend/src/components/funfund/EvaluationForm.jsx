@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 
 const EvaluationForm = ({ onSubmit, onCancel, language }) => {
   const [vote, setVote] = useState("positive");
-  const [stake, setStake] = useState([5]); // 1-10 scale
+  const [stake, setStake] = useState([5]);
   const [reasoning, setReasoning] = useState("");
   const [advancedMode, setAdvancedMode] = useState(false);
   const [customStake, setCustomStake] = useState("100");
@@ -16,6 +16,12 @@ const EvaluationForm = ({ onSubmit, onCancel, language }) => {
   const handleSubmit = () => {
     const finalStake = advancedMode ? parseInt(customStake) : stake[0] * 10;
     onSubmit({ vote, stake: finalStake, reasoning });
+  };
+
+  const voteOptions = {
+    positive: language === "ja" ? "賛成" : "Positive",
+    neutral: language === "ja" ? "中立" : "Neutral",
+    negative: language === "ja" ? "反対" : "Negative"
   };
 
   return (
@@ -41,13 +47,13 @@ const EvaluationForm = ({ onSubmit, onCancel, language }) => {
                     : "border-border bg-white text-text-tertiary hover:bg-surface"
                 }`}
               >
-                {v === "positive" ? "✓" : v === "neutral" ? "○" : "✗"}
+                {voteOptions[v]}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Stake - Simple 1-10 by default */}
+        {/* Stake */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-text-primary">

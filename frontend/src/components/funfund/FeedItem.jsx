@@ -7,7 +7,7 @@ import ReplyForm from "./ReplyForm";
 const FeedItem = ({ item, onEvaluate, onReply, language, depth = 0 }) => {
   const [showEvalForm, setShowEvalForm] = useState(false);
   const [showReplyForm, setShowReplyForm] = useState(false);
-  const [expanded, setExpanded] = useState(true);
+  const [showReplies, setShowReplies] = useState(true);
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -31,16 +31,17 @@ const FeedItem = ({ item, onEvaluate, onReply, language, depth = 0 }) => {
 
   const getVoteLabel = (vote) => {
     if (language === "ja") {
-      return vote === "positive" ? "✓ 賛成" : vote === "neutral" ? "○ 中立" : "✗ 反対";
+      return vote === "positive" ? "賛成" : vote === "neutral" ? "中立" : "反対";
     }
-    return vote === "positive" ? "✓ Positive" : vote === "neutral" ? "○ Neutral" : "✗ Negative";
+    return vote === "positive" ? "Positive" : vote === "neutral" ? "Neutral" : "Negative";
   };
 
   const isEvaluation = item.type === "EVALUATION";
   const hasChildren = item.children && item.children.length > 0;
+  const replyCount = hasChildren ? item.children.length : 0;
 
   return (
-    <div className="animate-float-in" style={{ marginLeft: `${depth * 32}px` }}>
+    <div className="animate-float-in">
       <div className={`rounded-lg border p-5 ${
         isEvaluation 
           ? "bg-yellow-50 border-yellow-200" 
@@ -61,10 +62,11 @@ const FeedItem = ({ item, onEvaluate, onReply, language, depth = 0 }) => {
           </div>
           {hasChildren && (
             <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-text-tertiary hover:text-text-primary transition-colors"
+              onClick={() => setShowReplies(!showReplies)}
+              className="flex items-center gap-1 text-sm text-text-tertiary hover:text-text-primary transition-colors"
             >
-              {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              {showReplies ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <span>{replyCount} {language === "ja" ? "件の返信" : "replies"}</span>
             </button>
           )}
         </div>
@@ -174,8 +176,8 @@ const FeedItem = ({ item, onEvaluate, onReply, language, depth = 0 }) => {
         )}
       </div>
 
-      {/* Children (Fractal Structure) */}
-      {expanded && hasChildren && (
+      {/* Children (Flat Display - No Indentation) */}
+      {showReplies && hasChildren && (
         <div className="mt-3 space-y-3">
           {item.children.map((child) => (
             <FeedItem
@@ -184,7 +186,7 @@ const FeedItem = ({ item, onEvaluate, onReply, language, depth = 0 }) => {
               onEvaluate={onEvaluate}
               onReply={onReply}
               language={language}
-              depth={depth + 1}
+              depth={0}
             />
           ))}
         </div>
