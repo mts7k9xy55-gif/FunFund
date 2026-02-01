@@ -102,113 +102,140 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Slack/Discord-like chat UI application with comprehensive scenarios including interface loading, channel navigation, project navigation, message composer functionality, convert to project feature, dark mode toggle, and UI elements verification."
+user_problem_statement: "Test the FunFund UI application - a Do-Based action log platform with 3-pane layout including navigation with Spaces and Projects, Action Feed with PROPOSAL cards and comments, Commit Ledger with evaluations, and Unified Composer with 3 modes (Flow, Proposal, Commit)."
 
 frontend:
-  - task: "Main Interface Loading"
+  - task: "3-Pane Layout Structure"
     implemented: true
-    working: true
-    file: "/app/frontend/src/components/ChatLayout.jsx"
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/FunFundLayout.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Initial task setup - needs testing for sidebar, channels, projects, messages display, and message composer visibility"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - All main interface elements load correctly: sidebar visible with Channels and Projects sections, general channel active by default, main messages area displays properly, message composer visible at bottom"
+        comment: "Initial task setup - needs testing for 3-pane layout: Left Navigation with Spaces (general, tech, design) and Projects, Center Action Feed, Right Commit Ledger"
 
-  - task: "Channel Navigation"
+  - task: "Left Navigation - Spaces and Projects"
     implemented: true
-    working: true
-    file: "/app/frontend/src/components/Sidebar.jsx"
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/LeftNav.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Initial task setup - needs testing for channel switching between general, random, engineering with unread badges"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - Channel navigation works perfectly: clicking channels (general, random, engineering) properly activates them with visual feedback, unread badges display correctly (3 on random, 12 on engineering), channel header updates appropriately"
+        comment: "Initial task setup - needs testing for space navigation (general, tech, design) and project navigation with active proposals count"
 
-  - task: "Project Navigation"
+  - task: "Action Feed - PROPOSAL Cards"
     implemented: true
-    working: true
-    file: "/app/frontend/src/components/Sidebar.jsx"
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/ActionFeed.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Initial task setup - needs testing for project switching between Website Redesign and API Integration"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - Project navigation works correctly: clicking projects (Website Redesign, API Integration) activates them with proper visual feedback, unread badges visible (5 on Website Redesign, 2 on API Integration)"
+        comment: "Initial task setup - needs testing for PROPOSAL cards display with title, content, author, tags, and prominence"
 
-  - task: "Message Composer Functionality"
+  - task: "Action Feed - Comments and AI Responses"
     implemented: true
-    working: true
-    file: "/app/frontend/src/components/MessageComposer.jsx"
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/CommentItem.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Initial task setup - needs testing for typing, send button enabling, Enter key sending, Shift+Enter new line functionality"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - Message composer works perfectly: typing enables send button, clicking send adds message to chat, Enter key sends message, Shift+Enter creates new line without sending, placeholder updates with channel name, toast notifications work"
+        comment: "Initial task setup - needs testing for COMMENT items (lighter, indented with left border) and AI_RESPONSE items (purple/AI boundary styling)"
 
-  - task: "Convert to Project Feature"
+  - task: "Reaction System"
     implemented: true
-    working: true
-    file: "/app/frontend/src/components/MessageList.jsx"
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/ReactionBar.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial task setup - needs testing for 3 reaction types (👍 Agree, 🤔 Consider, ⚠️ Concern) with counts and interaction"
+
+  - task: "Commit Ledger - Evaluations"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/CommitLedger.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial task setup - needs testing for EVALUATION items in right pane: author, timestamp, target proposal, vote type, stake, comment. Should NOT appear in center feed"
+
+  - task: "Unified Composer - Mode Switching"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/UnifiedComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial task setup - needs testing for 3 composer modes: Flow (default comment), Proposal (create proposal), Commit (evaluation) with proper mode switching"
+
+  - task: "Unified Composer - Flow Mode"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/UnifiedComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial task setup - needs testing for Flow mode: type comment and send functionality"
+
+  - task: "Unified Composer - Proposal Mode"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/UnifiedComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial task setup - needs testing for Proposal mode: enter title, tags, content and send functionality"
+
+  - task: "Unified Composer - Commit Mode"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/funfund/UnifiedComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial task setup - needs testing for Commit mode: select vote (positive/neutral/negative), stake amount, reasoning functionality"
+
+  - task: "Visual Design and Typography"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/index.css"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Initial task setup - needs testing for message hover, convert button visibility, toast notification, and new project creation"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - Convert to Project feature works correctly: hovering over messages reveals Convert to Project button, clicking creates new project (project-1769910689376), automatically switches to new project view, original message appears in new project"
-
-  - task: "Dark Mode Toggle"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/components/Sidebar.jsx"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Initial task setup - needs testing for moon/sun icon toggle and theme switching functionality"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - Dark mode toggle works correctly: clicking moon/sun icon in sidebar header successfully switches between light and dark themes, visual changes are immediate and comprehensive (background, text colors, etc.)"
-
-  - task: "UI Elements Verification"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/components/MessageList.jsx"
-    stuck_count: 0
-    priority: "low"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Initial task setup - needs testing for unread badges, timestamps, reaction buttons, and hover states"
-      - working: true
-        agent: "testing"
-        comment: "PASSED - All UI elements work correctly: 4 unread badges found with correct values (3, 12, 5, 2), timestamps display properly, reaction buttons work (👋3 visible), hover states function on interactive elements, message formatting is proper"
+        comment: "Initial task setup - needs testing for minimal colors, typography-based hierarchy, different gravity levels: Flow (light) → Do (medium) → Commit (heavy), smooth animations"
 
 metadata:
   created_by: "testing_agent"
