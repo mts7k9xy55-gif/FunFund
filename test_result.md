@@ -227,21 +227,17 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "6.0"
-  test_sequence: 6
+  version: "7.0"
+  test_sequence: 7
 
 test_plan:
   current_focus:
-    - "Full-Width Feed (No Left Sidebar)"
-    - "Larger Text Sizes (18px Base)"
-    - "Menu Drawer (Right Side)"
-    - "Universal Evaluate & Reply Buttons"
-    - "Fractal Structure"
-    - "Credibility Scores"
-    - "Inline Forms"
-    - "Evaluation Visual Style"
-    - "Comment Composer Functionality"
-    - "Space Switching Functionality"
+    - "Simplified Stake Selection (1-10 Slider)"
+    - "Larger Menu Button"
+    - "Media Attachments"
+    - "Attachment Preview"
+    - "iOS Compatibility"
+    - "Evaluation Form Updates"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
