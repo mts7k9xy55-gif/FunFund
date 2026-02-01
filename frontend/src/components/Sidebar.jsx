@@ -18,7 +18,7 @@ const MOCK_PROJECTS = [
   { id: "api-integration", name: "API Integration", unread: 2 },
 ];
 
-export const Sidebar = ({ 
+const Sidebar = ({ 
   activeChannel, 
   activeChannelType,
   setActiveChannel, 
@@ -66,16 +66,7 @@ export const Sidebar = ({
                 )}
                 <span>Channels</span>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
+              <Plus className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100" />
             </button>
             
             {channelsExpanded && (
@@ -120,16 +111,7 @@ export const Sidebar = ({
                 )}
                 <span>Projects</span>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
+              <Plus className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100" />
             </button>
             
             {projectsExpanded && (
