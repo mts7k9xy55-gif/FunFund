@@ -2,7 +2,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import ChatArea from "./ChatArea";
 
-export const ChatLayout = ({ darkMode, setDarkMode }) => {
+const ChatLayout = ({ darkMode, setDarkMode }) => {
   const [activeChannel, setActiveChannel] = useState("general");
   const [activeChannelType, setActiveChannelType] = useState("channel");
 
