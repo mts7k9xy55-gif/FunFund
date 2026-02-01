@@ -1,7 +1,3 @@
-import { Button } from "@/components/ui/button";
-import { FolderKanban } from "lucide-react";
-import { toast } from "sonner";
-
 const MessageList = ({ messages, onConvertToProject }) => {
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -70,22 +66,15 @@ const MessageList = ({ messages, onConvertToProject }) => {
               )}
               
               <div className="mt-2 opacity-0 group-hover:opacity-100 transition-smooth">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    if (onConvertToProject) {
-                      onConvertToProject(message.id);
-                      toast.success("Message converted to project!", {
-                        description: "A new project has been created."
-                      });
-                    }
-                  }}
+                <button
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium border border-border bg-card hover:bg-accent rounded-md transition-smooth"
+                  onClick={() => onConvertToProject && onConvertToProject(message.id)}
                 >
-                  <FolderKanban className="h-3 w-3 mr-1" />
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
                   Convert to Project
-                </Button>
+                </button>
               </div>
             </div>
           </div>
