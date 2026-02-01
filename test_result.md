@@ -452,14 +452,18 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "4.0"
-  test_sequence: 4
+  version: "5.0"
+  test_sequence: 5
 
 test_plan:
   current_focus:
-    - "Enhanced Commit Ceremony - Evaluations Hidden from Feed"
-    - "Enhanced Commit Ceremony - Multi-Stage Overlay"
-    - "Enhanced Commit Ceremony - Ephemeral Experience"
+    - "Redesigned Comment Composer - Discussion Quality Focus"
+    - "Redesigned Promote Comment to Proposal Feature"
+    - "Redesigned Evaluation Panel - Right Side"
+    - "Redesigned 3-Stage Evaluation Ceremony"
+    - "Redesigned Japanese UI Elements"
+    - "Redesigned Feed Items Hierarchy"
+    - "Redesigned Clean Minimal Design"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
