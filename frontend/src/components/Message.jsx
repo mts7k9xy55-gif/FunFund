@@ -1,54 +1,35 @@
-import { useState } from "react";
-import { MoreVertical, Smile, Reply, FolderKanban } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { FolderKanban } from "lucide-react";
 import { toast } from "sonner";
 
-const formatTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInHours = (now - date) / (1000 * 60 * 60);
+const Message = ({ message, onConvertToProject }) => {
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
 
-  if (diffInHours < 24) {
-    return date.toLocaleTimeString("en-US", { 
-      hour: "2-digit", 
-      minute: "2-digit" 
-    });
-  }
-  return date.toLocaleDateString("en-US", { 
-    month: "short", 
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-};
-
-export const Message = ({ message, onConvertToProject }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const handleConvertClick = () => {
-    onConvertToProject(message.id);
-    toast.success("Message converted to project!", {
-      description: "A new project has been created from this message."
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString("en-US", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      });
+    }
+    return date.toLocaleDateString("en-US", { 
+      month: "short", 
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
   };
 
+  const handleConvert = () => {
+    onConvertToProject(message.id);
+    toast.success("Converted to project!");
+  };
+
   return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={cn(
-        "group px-6 py-2 hover:bg-message-hover transition-smooth relative",
-        "message-enter"
-      )}
-    >
+    <div className="group px-6 py-2 hover:bg-message-hover transition-smooth relative">
       <div className="flex gap-3">
         <Avatar className="h-9 w-9 flex-shrink-0">
           <AvatarFallback className="text-xs font-medium bg-primary text-primary-foreground">
@@ -85,61 +66,20 @@ export const Message = ({ message, onConvertToProject }) => {
               ))}
             </div>
           )}
+          
+          <div className="mt-2 opacity-0 group-hover:opacity-100 transition-smooth">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleConvert}
+            >
+              <FolderKanban className="h-3 w-3 mr-1" />
+              Convert to Project
+            </Button>
+          </div>
         </div>
       </div>
-
-      {/* Hover Actions */}
-      {isHovered && (
-        <div className="absolute top-0 right-4 -translate-y-1/2 bg-card border border-border rounded-lg shadow-md flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-secondary"
-            onClick={() => toast.info("Add reaction feature")}
-          >
-            <Smile className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-secondary"
-            onClick={() => toast.info("Reply feature")}
-          >
-            <Reply className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-secondary"
-            onClick={handleConvertClick}
-            title="Convert to Project"
-          >
-            <FolderKanban className="h-4 w-4" />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 hover:bg-secondary"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleConvertClick}>
-                <FolderKanban className="mr-2 h-4 w-4" />
-                Convert to Project
-              </DropdownMenuItem>
-              <DropdownMenuItem>Edit Message</DropdownMenuItem>
-              <DropdownMenuItem>Copy Link</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
-                Delete Message
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
     </div>
   );
 };
