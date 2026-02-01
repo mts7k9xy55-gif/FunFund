@@ -368,8 +368,17 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "3.0"
-  test_sequence: 3
+  version: "4.0"
+  test_sequence: 4
+
+test_plan:
+  current_focus:
+    - "Enhanced Commit Ceremony - Evaluations Hidden from Feed"
+    - "Enhanced Commit Ceremony - Multi-Stage Overlay"
+    - "Enhanced Commit Ceremony - Ephemeral Experience"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
 
 agent_communication:
   - agent: "testing"
@@ -378,3 +387,5 @@ agent_communication:
     message: "TESTING COMPLETED SUCCESSFULLY - All 11 major FunFund features tested and working perfectly. The Do-Based action log platform is fully functional with excellent 3-pane layout, proper gravity levels (Flow→Do→Commit), comprehensive composer modes, and beautiful visual design. All core concepts properly implemented including spaces navigation, proposal cards prominence, comment indentation, AI response styling, reaction system, and commit ledger separation. No critical issues found - application ready for use."
   - agent: "testing"
     message: "UPDATED UI TESTING COMPLETED - Verified all requested UI changes: ✅ No '#' symbols in spaces navigation ✅ 2-pane layout (removed right commit ledger) ✅ Proposal modal dialog (not inline form) ✅ Evaluations as yellow-bordered events in center feed ✅ Commit mode functionality (vote selection, stake, reasoning) ⚠️ Dramatic commit effect works but overlay may be too fast to capture. All major changes successfully implemented and functional."
+  - agent: "testing"
+    message: "ENHANCED COMMIT CEREMONY TESTING COMPLETED - ✅ CRITICAL CHANGE VERIFIED: Evaluations are NO LONGER visible in feed (David's evaluation completely hidden) ✅ Enhanced commit ceremony with multi-stage overlay working (preparing→committing→committed) ✅ Ephemeral experience achieved - no persistent visual record in feed ✅ Composer returns to Flow mode after ceremony ✅ All commit UI elements functional (vote selection, stake input, reasoning textarea). The enhanced ceremony creates the intended dramatic, irreversible decision moment with proper gravitas."
