@@ -12,7 +12,7 @@ const UnifiedComposer = ({ mode, setMode, onSubmit, activeSpace }) => {
   const [vote, setVote] = useState("positive");
   const [stake, setStake] = useState("100");
   const [showProposalModal, setShowProposalModal] = useState(false);
-  const [isCommitting, setIsCommitting] = useState(false);
+  const [commitState, setCommitState] = useState(null); // null | 'preparing' | 'committing' | 'committed'
 
   const handleSubmit = async () => {
     if (!content.trim()) return;
@@ -29,11 +29,12 @@ const UnifiedComposer = ({ mode, setMode, onSubmit, activeSpace }) => {
       onSubmit(newItem);
       setContent("");
     } else if (mode === "commit") {
-      // Commit with dramatic effect
-      setIsCommitting(true);
+      // Enhanced commit ceremony
+      setCommitState('preparing');
+      await new Promise(resolve => setTimeout(resolve, 600));
       
-      // Wait for dramatic effect
-      await new Promise(resolve => setTimeout(resolve, 800));
+      setCommitState('committing');
+      await new Promise(resolve => setTimeout(resolve, 1400));
       
       newItem = {
         type: "EVALUATION",
@@ -46,8 +47,12 @@ const UnifiedComposer = ({ mode, setMode, onSubmit, activeSpace }) => {
       };
       
       onSubmit(newItem);
+      
+      setCommitState('committed');
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       setContent("");
-      setIsCommitting(false);
+      setCommitState(null);
       setMode("flow");
     }
   };
@@ -80,12 +85,52 @@ const UnifiedComposer = ({ mode, setMode, onSubmit, activeSpace }) => {
 
   return (
     <>
-      {/* Commit Overlay */}
-      {isCommitting && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center animate-in fade-in duration-300">
-          <div className="text-center space-y-4">
-            <div className="text-4xl font-bold text-white animate-pulse">Committing...</div>
-            <div className="text-sm text-white/60">Stake: {stake} · Vote: {vote}</div>
+      {/* Commit Ceremony Overlay */}
+      {commitState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Background with intensifying darkness */}
+          <div 
+            className={`absolute inset-0 transition-all duration-700 ${
+              commitState === 'preparing' ? 'bg-black/60' :
+              commitState === 'committing' ? 'bg-black/90' :
+              'bg-black/40'
+            }`}
+          />
+          
+          {/* Content */}
+          <div className="relative z-10 text-center space-y-6">
+            {commitState === 'preparing' && (
+              <div className="animate-in fade-in zoom-in duration-500">
+                <div className="text-2xl text-white/80 font-light">Preparing commitment...</div>
+              </div>
+            )}
+            
+            {commitState === 'committing' && (
+              <div className="animate-in fade-in zoom-in duration-700 space-y-4">
+                <Award className="h-16 w-16 text-yellow-400 mx-auto animate-pulse" />
+                <div className="text-5xl font-bold text-white tracking-tight animate-pulse">
+                  Committing
+                </div>
+                <div className="text-lg text-white/70 space-y-1">
+                  <div className="flex items-center justify-center gap-3">
+                    <span className={`px-4 py-2 rounded-lg font-semibold ${
+                      vote === "positive" ? "bg-green-500/20 text-green-300" :
+                      vote === "neutral" ? "bg-gray-500/20 text-gray-300" :
+                      "bg-red-500/20 text-red-300"
+                    }`}>
+                      {vote === "positive" ? "✓ Positive" : vote === "neutral" ? "○ Neutral" : "✗ Negative"}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-yellow-400">{stake} stake</div>
+                </div>
+              </div>
+            )}
+            
+            {commitState === 'committed' && (
+              <div className="animate-in fade-in zoom-in duration-500">
+                <div className="text-3xl text-white font-medium">Committed ✓</div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -208,10 +253,11 @@ const UnifiedComposer = ({ mode, setMode, onSubmit, activeSpace }) => {
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
               className="min-h-[60px] max-h-[120px] resize-none border-0 bg-background text-sm focus-visible:ring-0"
+              disabled={commitState !== null}
             />
             <Button
               onClick={handleSubmit}
-              disabled={!content.trim() || isCommitting}
+              disabled={!content.trim() || commitState !== null}
               size="icon"
               className="flex-shrink-0 h-10 w-10"
             >
