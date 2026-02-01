@@ -117,20 +117,113 @@ frontend:
         agent: "testing"
         comment: "PASSED - Full-width feed perfectly implemented: No left sidebar found, feed has max-width-4xl class for centered layout, clean immersive reading experience achieved. Layout is completely redesigned from previous 3-pane structure."
 
-  - task: "Left Navigation - Spaces and Projects"
+  - task: "Larger Text Sizes (18px Base)"
     implemented: true
     working: true
-    file: "/app/frontend/src/components/funfund/LeftNav.jsx"
+    file: "/app/frontend/src/index.css"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Initial task setup - needs testing for space navigation (general, tech, design) and project navigation with active proposals count"
       - working: true
         agent: "testing"
-        comment: "PASSED - Left navigation working correctly: All 3 spaces (general, tech, design) visible and clickable, space switching updates header to show active space (#tech, #general), Projects section visible with proper folder icons, space navigation provides visual feedback"
+        comment: "PASSED - Larger text sizes perfectly implemented: Base font size is 18px (increased from 16px), all text is more readable, improved typography for better reading experience."
+
+  - task: "Menu Drawer (Right Side)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/MenuDrawer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Menu drawer working excellently: Opens on right side when clicking menu button, contains Language section (日本語/English switching), Public Board section (掲示板), DM section with Alice/Bob, Groups section (デザインチーム/開発チーム), proper overlay and close functionality."
+
+  - task: "Universal Evaluate & Reply Buttons"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/FeedItem.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Universal buttons working perfectly: Found 4 reply buttons (返信) and 4 evaluate buttons (判断) on every item including proposals, comments, and evaluations. Every item has both action buttons as required."
+
+  - task: "Fractal Structure"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/FeedItem.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Fractal structure working excellently: Evaluations can be evaluated (found 2 evaluate buttons on evaluation items), replies can be evaluated, proper indentation with depth (found 4 nested items), expand/collapse buttons working for items with children. True fractal evaluation system achieved."
+
+  - task: "Credibility Scores"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/FeedItem.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Credibility scores working perfectly: Found scores (85, 92, 78, 65) displayed next to author names, color coding implemented (yellow for 80+, blue for 60-79, gray for <60), proper visual hierarchy with different colors for different score ranges."
+
+  - task: "Inline Forms"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/ReplyForm.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Inline forms working excellently: Reply forms appear inline when clicking 返信 button, evaluation forms appear inline when clicking 判断 button, both have proper cancel buttons, vote buttons (✓/○/✗) in evaluation forms, stake input and reasoning textarea functional."
+
+  - task: "Evaluation Visual Style"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/FeedItem.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Evaluation visual style perfect: Found 2 items with yellow background (bg-yellow-50), vote indicators (✓ 賛成) displayed properly, stake amounts shown (Stake: 100, Stake: 50), reasoning text displayed, clear visual distinction from regular comments."
+
+  - task: "Comment Composer Functionality"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/CommentComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Comment composer working perfectly: Textarea found and functional, Enter key creates new line (does not send), Cmd+Enter sends message and clears textarea, new comments appear in feed after sending, send button also works and clears textarea."
+
+  - task: "Space Switching Functionality"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/MenuDrawer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Space switching working correctly: Successfully switched from '全体議論' to 'DM' space, header updated to show 'FunFund DM', menu drawer contains proper space options (Public Board, DM with Alice/Bob, Groups with デザインチーム/開発チーム)."
 
   - task: "Action Feed - PROPOSAL Cards"
     implemented: true
