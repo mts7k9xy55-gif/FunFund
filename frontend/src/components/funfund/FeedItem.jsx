@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Award, ChevronDown, ChevronRight } from "lucide-react";
+import { MessageSquare, Award, ChevronDown, ChevronRight, Image as ImageIcon } from "lucide-react";
 import EvaluationForm from "./EvaluationForm";
 import ReplyForm from "./ReplyForm";
 
@@ -92,9 +92,39 @@ const FeedItem = ({ item, onEvaluate, onReply, language, depth = 0 }) => {
             </p>
           </div>
         ) : (
-          <p className="text-base text-text-primary leading-relaxed">
-            {item.content}
-          </p>
+          <>
+            <p className="text-base text-text-primary leading-relaxed">
+              {item.content}
+            </p>
+            
+            {/* Attachments */}
+            {item.attachments && item.attachments.length > 0 && (
+              <div className="mt-3 flex gap-2 flex-wrap">
+                {item.attachments.map((attachment, idx) => (
+                  <div key={idx}>
+                    {attachment.type === "image" ? (
+                      <img 
+                        src={attachment.url} 
+                        alt={attachment.name}
+                        className="max-w-md max-h-96 rounded border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(attachment.url, "_blank")}
+                      />
+                    ) : (
+                      <a 
+                        href={attachment.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-surface border border-border rounded hover:bg-surface-hover transition-colors"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        <span className="text-sm">{attachment.name}</span>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Actions */}

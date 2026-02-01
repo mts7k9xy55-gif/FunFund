@@ -16,11 +16,11 @@ const TopBar = ({ onMenuClick, activeSpace, language }) => {
       </div>
       <Button
         variant="ghost"
-        size="icon"
-        className="ml-auto"
+        size="lg"
+        className="ml-auto h-12 w-12"
         onClick={onMenuClick}
       >
-        <Menu className="h-5 w-5" />
+        <Menu className="h-7 w-7" />
       </Button>
     </div>
   );
