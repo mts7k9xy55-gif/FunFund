@@ -330,6 +330,42 @@ frontend:
         agent: "testing"
         comment: "PASSED - Commit mode functionality working: vote selection (✓/○/✗), stake input, reasoning textarea all functional. Commit submission works and switches back to Flow mode. Dramatic overlay effect implemented but may be too fast to capture visually during testing."
 
+  - task: "Enhanced Commit Ceremony - Evaluations Hidden from Feed"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/ActionFeed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Evaluations are completely hidden from the feed. Verified David's evaluation (Strong technical foundation) is NOT visible in center feed. Only PROPOSAL, COMMENT, AI_RESPONSE, and REACTION items appear in feed as expected."
+
+  - task: "Enhanced Commit Ceremony - Multi-Stage Overlay"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/UnifiedComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Enhanced commit ceremony with multi-stage overlay implemented. Commit mode UI working: vote buttons (✓/○/✗), stake input, reasoning textarea all functional. Ceremony stages (preparing→committing→committed) implemented with proper timing and visual effects. Composer returns to Flow mode after ceremony completion."
+
+  - task: "Enhanced Commit Ceremony - Ephemeral Experience"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/funfund/UnifiedComposer.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PASSED - Commit ceremony creates ephemeral experience as intended. No evaluation appears in feed after ceremony completion. Text is cleared, composer returns to Flow mode, creating the intended 'weight of decision' without persistent visual record in feed."
+
 metadata:
   created_by: "testing_agent"
   version: "3.0"
