@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the FunFund UI application - a Do-Based action log platform with 3-pane layout including navigation with Spaces and Projects, Action Feed with PROPOSAL cards and comments, Commit Ledger with evaluations, and Unified Composer with 3 modes (Flow, Proposal, Commit)."
+user_problem_statement: "Test the completely redesigned FunFund with fractal evaluation system - Full-width feed (no left sidebar), larger text sizes, right-side menu drawer with language/space switching, universal evaluate & reply buttons on every item, fractal structure where evaluations can be evaluated, credibility scores with color coding, inline forms, and evaluation visual styling."
 
 frontend:
   - task: "3-Pane Layout Structure"
