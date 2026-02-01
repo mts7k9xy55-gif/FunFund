@@ -1,13 +1,12 @@
 import { useState } from "react";
 import LeftNav from "./LeftNav";
 import ActionFeed from "./ActionFeed";
-import CommitLedger from "./CommitLedger";
 import UnifiedComposer from "./UnifiedComposer";
 
 const FunFundLayout = () => {
   const [activeSpace, setActiveSpace] = useState("general");
   const [items, setItems] = useState(MOCK_ITEMS);
-  const [composerMode, setComposerMode] = useState("flow"); // flow | proposal | commit
+  const [composerMode, setComposerMode] = useState("flow"); // flow | commit
 
   const handleAddItem = (newItem) => {
     setItems([...items, { ...newItem, id: Date.now().toString(), timestamp: new Date().toISOString() }]);
@@ -33,7 +32,7 @@ const FunFundLayout = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Main Content - 3 Panes */}
+      {/* Main Content - 2 Panes (removed right ledger) */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Nav */}
         <LeftNav 
@@ -41,18 +40,12 @@ const FunFundLayout = () => {
           setActiveSpace={setActiveSpace}
         />
         
-        {/* Center Feed */}
+        {/* Center Feed (now full width without right pane) */}
         <ActionFeed 
           items={items}
           activeSpace={activeSpace}
           onReaction={handleReaction}
           onProposalToProject={handleProposalToProject}
-        />
-        
-        {/* Right Ledger */}
-        <CommitLedger 
-          items={items}
-          activeSpace={activeSpace}
         />
       </div>
       

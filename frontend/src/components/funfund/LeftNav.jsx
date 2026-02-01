@@ -1,4 +1,4 @@
-import { Hash, FolderKanban, Plus, ChevronRight } from "lucide-react";
+import { FolderKanban, Plus, ChevronRight } from "lucide-react";
 
 const MOCK_SPACES = [
   { id: "general", name: "general", type: "space" },
@@ -33,7 +33,6 @@ const LeftNav = ({ activeSpace, setActiveSpace }) => {
                   : "text-text-secondary hover:bg-surface-hover"
               }`}
             >
-              <Hash className="h-3.5 w-3.5" />
               <span>{space.name}</span>
             </button>
           ))}

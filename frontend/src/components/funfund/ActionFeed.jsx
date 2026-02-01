@@ -3,12 +3,11 @@ import ProposalCard from "./ProposalCard";
 import CommentItem from "./CommentItem";
 import AIResponseItem from "./AIResponseItem";
 import ReactionBar from "./ReactionBar";
+import CommitEvent from "./CommitEvent";
 
 const ActionFeed = ({ items, activeSpace, onReaction, onProposalToProject }) => {
-  // Filter items for active space, exclude EVALUATION (goes to right pane)
-  const feedItems = items.filter(
-    (item) => item.space === activeSpace && item.type !== "EVALUATION"
-  );
+  // Filter items for active space
+  const feedItems = items.filter((item) => item.space === activeSpace);
 
   // Group reactions by targetId
   const reactionsByTarget = {};
@@ -31,53 +30,77 @@ const ActionFeed = ({ items, activeSpace, onReaction, onProposalToProject }) => 
     return feedItems.filter((item) => item.type === "AI_RESPONSE" && item.targetId === targetId);
   };
 
-  // Render proposals with their comments and reactions
+  // Get evaluations for a target
+  const getEvaluations = (targetId) => {
+    return feedItems.filter((item) => item.type === "EVALUATION" && item.targetId === targetId);
+  };
+
+  // Render proposals and evaluations in chronological order
   const proposals = feedItems.filter((item) => item.type === "PROPOSAL");
+  const evaluations = feedItems.filter((item) => item.type === "EVALUATION");
+
+  // Merge and sort by timestamp
+  const mainItems = [...proposals, ...evaluations].sort(
+    (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+  );
 
   return (
-    <div className="flex-1 flex flex-col border-r border-border">
+    <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="h-12 px-6 flex items-center border-b border-border bg-surface">
         <h2 className="text-sm font-medium text-text-primary">Action Feed</h2>
-        <div className="ml-auto text-xs text-text-tertiary">#{activeSpace}</div>
+        <div className="ml-auto text-xs text-text-tertiary">{activeSpace}</div>
       </div>
       
       {/* Feed */}
       <ScrollArea className="flex-1 minimal-scrollbar">
         <div className="p-6 space-y-6">
-          {proposals.length === 0 ? (
+          {mainItems.length === 0 ? (
             <div className="text-center py-12 text-text-tertiary text-sm">
-              No proposals yet. Create one to get started.
+              No activity yet. Create a proposal to get started.
             </div>
           ) : (
-            proposals.map((proposal) => (
-              <div key={proposal.id} className="space-y-3 animate-float-in">
-                {/* Proposal Card */}
-                <ProposalCard 
-                  proposal={proposal}
-                  onProposalToProject={onProposalToProject}
-                />
-                
-                {/* Reactions */}
-                {reactionsByTarget[proposal.id] && (
-                  <ReactionBar 
-                    reactions={reactionsByTarget[proposal.id]}
-                    targetId={proposal.id}
-                    onReaction={onReaction}
-                  />
-                )}
-                
-                {/* Comments */}
-                {getComments(proposal.id).map((comment) => (
-                  <div key={comment.id}>
-                    <CommentItem comment={comment} />
+            mainItems.map((item) => (
+              <div key={item.id}>
+                {item.type === "PROPOSAL" ? (
+                  <div className="space-y-3 animate-float-in">
+                    {/* Proposal Card */}
+                    <ProposalCard 
+                      proposal={item}
+                      onProposalToProject={onProposalToProject}
+                    />
                     
-                    {/* AI Response after comment */}
-                    {getAIResponses(comment.id).map((aiResponse) => (
-                      <AIResponseItem key={aiResponse.id} response={aiResponse} />
+                    {/* Reactions */}
+                    {reactionsByTarget[item.id] && (
+                      <ReactionBar 
+                        reactions={reactionsByTarget[item.id]}
+                        targetId={item.id}
+                        onReaction={onReaction}
+                      />
+                    )}
+                    
+                    {/* Comments */}
+                    {getComments(item.id).map((comment) => (
+                      <div key={comment.id}>
+                        <CommentItem comment={comment} />
+                        
+                        {/* AI Response after comment */}
+                        {getAIResponses(comment.id).map((aiResponse) => (
+                          <AIResponseItem key={aiResponse.id} response={aiResponse} />
+                        ))}
+                      </div>
+                    ))}
+                    
+                    {/* Evaluations as events */}
+                    {getEvaluations(item.id).map((evaluation) => (
+                      <CommitEvent key={evaluation.id} evaluation={evaluation} />
                     ))}
                   </div>
-                ))}
+                ) : item.type === "EVALUATION" ? (
+                  <div className="animate-float-in">
+                    <CommitEvent evaluation={item} showTarget />
+                  </div>
+                ) : null}
               </div>
             ))
           )}
