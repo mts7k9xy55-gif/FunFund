@@ -5,46 +5,63 @@
 
 import ItemNode from "./ItemNode";
 
-// Mock data (temporary, will be moved to a higher-level component)
-const MOCK_ITEMS = [
-  {
-    id: "1",
-    type: "PROPOSAL",
-    content: "Should we implement feature X?",
-    userId: "user1",
-    userName: "Alice",
-    parentId: null,
-    createdAt: Date.now() - 3600000,
-    children: [
-      {
-        id: "2",
-        type: "COMMENT",
-        content: "I think this is a great idea!",
-        userId: "user2",
-        userName: "Bob",
-        parentId: "1",
-        createdAt: Date.now() - 1800000,
-      },
-      {
-        id: "3",
-        type: "EVALUATION",
-        content: "Strong proposal with clear value",
-        score: 8,
-        reason: "Well researched and addresses real pain point",
-        userId: "user3",
-        userName: "Charlie",
-        parentId: "1",
-        createdAt: Date.now() - 900000,
-      },
-    ],
-  },
-];
+// アイテムの型定義
+type ThreadItem = {
+  id: string;
+  type: string;
+  content: string;
+  userId: string;
+  userName: string;
+  parentId: string | null;
+  createdAt: number;
+  children?: ThreadItem[];
+  score?: number;
+  reason?: string;
+};
 
-export default function ThreadView({ items }: { items: typeof MOCK_ITEMS }) {
+export default function ThreadView({
+  items,
+  onOpenCommit,
+  onOpenProjectCreate,
+  onOpenComment,
+  onOpenProfile,
+  language,
+}: {
+  items: ThreadItem[];
+  onOpenCommit?: (itemId: string) => void;
+  onOpenProjectCreate?: () => void;
+  onOpenComment?: () => void;
+  onOpenProfile?: (userId: string) => void;
+  language: "ja" | "en";
+}) {
+  // 全体議論は複数の独立したスレッド（カード）が並ぶ形式
+  // ローンチ前なので空の状態を表示
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-fg text-sm">
+          {language === "ja"
+            ? "まだスレッドがありません。最初のスレッドを作成しましょう。"
+            : "No threads yet. Create the first thread."}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
+      {/* 全体議論：各カードが独立したスレッド（返信は各カード内で展開） */}
       {items.map((item) => (
-        <ItemNode key={item.id} item={item} depth={0} />
+        <ItemNode
+          key={item.id}
+          item={item}
+          depth={0}
+          onOpenCommit={onOpenCommit}
+          onOpenProjectCreate={onOpenProjectCreate}
+          onOpenComment={onOpenComment}
+          onOpenProfile={onOpenProfile}
+          language={language}
+        />
       ))}
     </div>
   );

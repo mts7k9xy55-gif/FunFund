@@ -1,102 +1,154 @@
 // src/components/thread/ItemNode.tsx
-// This component displays a single item in the thread view.
-// It is a pure presentational component that receives item data and depth as props.
-// It handles UI aspects like indentation and expanding/collapsing children, but no data fetching.
+// Emergent型カード：白基調 / 判断カードは黄ハイライト / 返信・判断ボタン / バッジなし
+// 未認証時はユーザー名を非表示、信憑性度を表示
 
 import { useState } from "react";
+import { SignedIn } from "@clerk/nextjs";
 
-// Mock data types (temporary, will be moved to a higher-level component)
-const MOCK_ITEMS = [
-  {
-    id: "1",
-    type: "PROPOSAL",
-    content: "Should we implement feature X?",
-    userId: "user1",
-    userName: "Alice",
-    parentId: null,
-    createdAt: Date.now() - 3600000,
-    children: [] as any[], // Children are rendered by recursive ItemNode
-  },
-];
+// アイテムの型定義
+type Item = {
+  id: string;
+  type: string;
+  content: string;
+  userId: string;
+  userName: string;
+  parentId: string | null;
+  createdAt: number;
+  children?: Item[];
+  score?: number;
+  reason?: string;
+};
 
-type Item = (typeof MOCK_ITEMS)[0] | (typeof MOCK_ITEMS)[0]["children"][0];
+function formatTimeAgo(ms: number, language: "ja" | "en"): string {
+  const min = Math.floor((Date.now() - ms) / 60000);
+  if (language === "ja") {
+    if (min < 60) return `${min}分前`;
+    const h = Math.floor(min / 60);
+    return `${h}時間前`;
+  } else {
+    if (min < 60) return `${min}m ago`;
+    const h = Math.floor(min / 60);
+    return `${h}h ago`;
+  }
+}
 
 export default function ItemNode({
   item,
   depth,
+  onOpenCommit,
+  onOpenProjectCreate,
+  onOpenComment,
+  onOpenProfile,
+  language,
 }: {
   item: Item;
   depth: number;
+  onOpenCommit?: (itemId: string) => void;
+  onOpenProjectCreate?: () => void;
+  onOpenComment?: () => void;
+  onOpenProfile?: (userId: string) => void;
+  language: "ja" | "en";
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = "children" in item && item.children && item.children.length > 0;
+  const isJudgment = item.type === "EVALUATION";
+  // 信憑性度（credibility）: 判断履歴に基づく数値（例: 78, 92）
+  // 現時点ではscoreをcredibilityとして使用（後でConvexから取得）
+  const credibility = "score" in item && typeof item.score === "number" ? item.score : null;
 
   return (
-    <div className="space-y-2" style={{ marginLeft: `${depth * 24}px` }}>
-      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 hover:border-neutral-700 transition-colors">
-        {/* Header */}
-        <div className="flex items-start gap-3 mb-2">
-          <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-bold">
-            {item.userName[0]}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">{item.userName}</span>
-              <span
-                className={`px-2 py-0.5 text-xs font-bold rounded ${
-                  item.type === "PROPOSAL"
-                    ? "bg-blue-600 text-white"
-                    : item.type === "EVALUATION"
-                    ? "bg-purple-600 text-white"
-                    : item.type === "COMMENT"
-                    ? "bg-neutral-700 text-neutral-300"
-                    : "bg-yellow-600 text-white"
-                }`}
+    <div className="space-y-4" style={{ marginLeft: `${depth * 20}px` }}>
+      {/* Card: Emergent型（判断カードは黄ハイライト） */}
+      <div
+        className={`card p-4 transition-shadow ${
+          isJudgment ? "bg-amber-50 border-amber-100" : ""
+        }`}
+      >
+        {/* Header: 名前・信憑性度(primary)・時間 */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {/* 未認証時はユーザー名を非表示 */}
+            <SignedIn>
+              <button
+                type="button"
+                onClick={() => onOpenProfile?.(item.userId)}
+                className="text-lg font-semibold leading-tight text-fg hover:text-primary transition-colors cursor-pointer"
               >
-                {item.type}
-              </span>
-              <span className="text-xs text-neutral-500">
-                {new Date(item.createdAt).toLocaleTimeString()}
-              </span>
-            </div>
+                {item.userName}
+              </button>
+            </SignedIn>
+            {/* 信憑性度を表示 */}
+            {credibility !== null && (
+              <span className="text-lg font-semibold text-primary">{credibility}</span>
+            )}
+            <span className="text-xs text-muted-fg">
+              {formatTimeAgo(item.createdAt, language)}
+            </span>
           </div>
+          {hasChildren && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-1 text-xs text-muted-fg hover:text-fg shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              {language === "ja"
+                ? `${item.children?.length ?? 0}件の返信`
+                : `${item.children?.length ?? 0} replies`}
+            </button>
+          )}
         </div>
 
-        {/* Content */}
-        <div className="text-sm text-neutral-200 mb-2 ml-11">{item.content}</div>
+        {/* Content: 判断の場合は「賛成」＋本文 */}
+        <div className="text-fg leading-relaxed mb-4">
+          {isJudgment && (
+            <span className="font-semibold text-fg mr-2">賛成</span>
+          )}
+          {item.content}
+        </div>
 
-        {/* Score & Reason (for EVALUATION) */}
-        {item.type === "EVALUATION" && "score" in item && item.score && (
-          <div className="mt-3 ml-11 p-3 bg-purple-950 border border-purple-800 rounded">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-purple-300">SCORE:</span>
-              <span className="text-lg font-bold text-purple-200">{item.score}/10</span>
-            </div>
-            {"reason" in item && item.reason && (
-              <div className="text-xs text-purple-300">
-                <span className="font-bold">Reason: </span>
-                {item.reason}
-              </div>
-            )}
+        {/* Reason (EVALUATION only) */}
+        {isJudgment && "reason" in item && item.reason && (
+          <div className="mb-4 pl-0 text-sm text-muted-fg">
+            {item.reason}
           </div>
         )}
 
-        {/* Actions */}
-        {hasChildren && (
+        {/* Actions: 返信・判断のみ */}
+        <div className="flex gap-2">
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="mt-2 ml-11 text-xs text-neutral-500 hover:text-neutral-300 font-medium"
+            type="button"
+            onClick={onOpenComment}
+            className="px-3 py-1.5 rounded-lg bg-muted text-fg text-sm font-medium hover:bg-muted/80 transition-colors"
           >
-            {isExpanded ? "▼" : "▶"} {item.children.length} replies
+            {language === "ja" ? "返信" : "Reply"}
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => onOpenCommit?.(item.id)}
+            className="px-3 py-1.5 rounded-lg bg-muted text-fg text-sm font-medium hover:bg-muted/80 transition-colors"
+          >
+            {language === "ja" ? "判断" : "Judge"}
+          </button>
+        </div>
       </div>
 
       {/* Children */}
-      {hasChildren && isExpanded && (
-        <div className="space-y-2">
+      {hasChildren && isExpanded && item.children && (
+        <div className="space-y-4">
           {item.children.map((child) => (
-            <ItemNode key={child.id} item={child} depth={depth + 1} />
+            <ItemNode
+              key={child.id}
+              item={child}
+              depth={depth + 1}
+              onOpenCommit={onOpenCommit}
+              onOpenProjectCreate={onOpenProjectCreate}
+              onOpenComment={onOpenComment}
+              onOpenProfile={onOpenProfile}
+              language={language}
+            />
           ))}
         </div>
       )}

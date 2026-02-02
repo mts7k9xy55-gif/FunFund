@@ -8,10 +8,20 @@
  * @module
  */
 
-import type * as evaluations from "../evaluations.js";
+import type * as _guards from "../_guards.js";
+import type * as connections from "../connections.js";
+import type * as decisions from "../decisions.js";
+import type * as executions from "../executions.js";
+import type * as groups from "../groups.js";
+import type * as invites from "../invites.js";
 import type * as items from "../items.js";
+import type * as layerInputs from "../layerInputs.js";
+import type * as messages from "../messages.js";
 import type * as profiles from "../profiles.js";
-import type * as proposals from "../proposals.js";
+import type * as publicPreviews from "../publicPreviews.js";
+import type * as rooms from "../rooms.js";
+import type * as stripe from "../stripe.js";
+import type * as threads from "../threads.js";
 import type * as users from "../users.js";
 
 import type {
@@ -21,10 +31,20 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  evaluations: typeof evaluations;
+  _guards: typeof _guards;
+  connections: typeof connections;
+  decisions: typeof decisions;
+  executions: typeof executions;
+  groups: typeof groups;
+  invites: typeof invites;
   items: typeof items;
+  layerInputs: typeof layerInputs;
+  messages: typeof messages;
   profiles: typeof profiles;
-  proposals: typeof proposals;
+  publicPreviews: typeof publicPreviews;
+  rooms: typeof rooms;
+  stripe: typeof stripe;
+  threads: typeof threads;
   users: typeof users;
 }>;
 
