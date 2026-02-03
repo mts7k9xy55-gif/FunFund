@@ -3,14 +3,21 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "../../../../../convex/_generated/api";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-12-18.acacia",
 });
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Convex HTTP ActionエンドポイントのベースURL
+const getConvexHttpActionUrl = (path: string) => {
+  const baseUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
+  }
+  // ConvexのHTTP ActionエンドポイントはベースURL + パス
+  // 例: https://xxx.convex.cloud/stripe/updateRoomStatus
+  return `${baseUrl}${path}`;
+};
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -62,11 +69,16 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Convex actionでRoom statusを更新
-        await convex.action(api.stripe.updateRoomStatus, {
-          roomId: roomId as any,
-          status: "active",
+        // Convex HTTP Actionを呼び出し
+        const response = await fetch(getConvexHttpActionUrl("/stripe/updateRoomStatus"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId, status: "active" }),
         });
+
+        if (!response.ok) {
+          throw new Error(`Convex action failed: ${response.statusText}`);
+        }
 
         console.log(`Room ${roomId} set to active`);
         break;
@@ -82,10 +94,15 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        await convex.action(api.stripe.updateRoomStatus, {
-          roomId: roomId as any,
-          status: "canceled",
+        const response = await fetch(getConvexHttpActionUrl("/stripe/updateRoomStatus"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId, status: "canceled" }),
         });
+
+        if (!response.ok) {
+          throw new Error(`Convex action failed: ${response.statusText}`);
+        }
 
         console.log(`Room ${roomId} set to canceled`);
         break;
@@ -110,10 +127,15 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        await convex.action(api.stripe.updateRoomStatus, {
-          roomId: roomId as any,
-          status: "past_due",
+        const response = await fetch(getConvexHttpActionUrl("/stripe/updateRoomStatus"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId, status: "past_due" }),
         });
+
+        if (!response.ok) {
+          throw new Error(`Convex action failed: ${response.statusText}`);
+        }
 
         console.log(`Room ${roomId} set to past_due`);
         break;
@@ -131,19 +153,32 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Convex actionでStripe情報を保存
-        await convex.action(api.stripe.setRoomStripeInfoAction, {
-          roomId: roomId as any,
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
+        // Convex HTTP ActionでStripe情報を保存
+        const saveInfoResponse = await fetch(getConvexHttpActionUrl("/stripe/setRoomStripeInfo"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomId,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId,
+          }),
         });
+
+        if (!saveInfoResponse.ok) {
+          throw new Error(`Convex action failed: ${saveInfoResponse.statusText}`);
+        }
 
         // 初回支払いが成功している場合はactiveに設定
         if (session.payment_status === "paid") {
-          await convex.action(api.stripe.updateRoomStatus, {
-            roomId: roomId as any,
-            status: "active",
+          const activateResponse = await fetch(getConvexHttpActionUrl("/stripe/updateRoomStatus"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomId, status: "active" }),
           });
+
+          if (!activateResponse.ok) {
+            throw new Error(`Convex action failed: ${activateResponse.statusText}`);
+          }
         }
 
         console.log(`Room ${roomId} Stripe info saved`);

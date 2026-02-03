@@ -13,6 +13,7 @@ import type * as connections from "../connections.js";
 import type * as decisions from "../decisions.js";
 import type * as executions from "../executions.js";
 import type * as groups from "../groups.js";
+import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as items from "../items.js";
 import type * as layerInputs from "../layerInputs.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   decisions: typeof decisions;
   executions: typeof executions;
   groups: typeof groups;
+  http: typeof http;
   invites: typeof invites;
   items: typeof items;
   layerInputs: typeof layerInputs;
