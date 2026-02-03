@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
+/* ===== Emergent Design Tokens (Light Theme) ===== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background & Foreground */
+  --bg: 0 0% 98%;
+  --fg: 222.2 47.4% 11.2%;
+  
+  /* Card */
+  --card: 0 0% 100%;
+  --card-fg: 222.2 47.4% 11.2%;
+  
+  /* Muted */
+  --muted: 210 40% 96%;
+  --muted-fg: 215.4 16.3% 46.9%;
+  
+  /* Border */
+  --border: 214.3 31.8% 91.4%;
+  
+  /* Primary (Purple) */
+  --primary: 244 83% 63%;
+  --primary-fg: 0 0% 100%;
+  
+  /* Accent colors for badges */
+  --accent-proposal: 221 83% 53%;
+  --accent-comment: 210 40% 50%;
+  --accent-evaluation: 262 83% 58%;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Map CSS vars to Tailwind colors */
+  --color-bg: hsl(var(--bg));
+  --color-fg: hsl(var(--fg));
+  --color-card: hsl(var(--card));
+  --color-card-fg: hsl(var(--card-fg));
+  --color-muted: hsl(var(--muted));
+  --color-muted-fg: hsl(var(--muted-fg));
+  --color-border: hsl(var(--border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-fg: hsl(var(--primary-fg));
+  
+  /* Font */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: hsl(var(--bg));
+  color: hsl(var(--fg));
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ===== Utility Classes ===== */
+.card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+  box-shadow: var(--shadow);
+}
+
+.btn-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
