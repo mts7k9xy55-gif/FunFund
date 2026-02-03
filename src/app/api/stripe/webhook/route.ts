@@ -46,10 +46,7 @@ export async function POST(req: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
 
       const roomId = session.metadata?.roomId;
-      const subscriptionId =
-        typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id;
+      const subscriptionId = (session as any).subscription;
 
       if (roomId && subscriptionId) {
         await callConvex("/stripe/setRoomStripeInfo", {
@@ -63,36 +60,28 @@ export async function POST(req: NextRequest) {
     }
 
     case "invoice.paid": {
-      const invoice = event.data.object as Stripe.Invoice;
+      const invoice = event.data.object as any;
+      const subscriptionId = invoice.subscription;
 
-      const subscriptionId =
-        typeof invoice.subscription === "string"
-          ? invoice.subscription
-          : invoice.subscription?.id;
-
-      if (!subscriptionId) break;
-
-      await callConvex("/stripe/updateRoomStatus", {
-        stripeSubscriptionId: subscriptionId,
-        status: "active",
-      });
+      if (subscriptionId) {
+        await callConvex("/stripe/updateRoomStatus", {
+          stripeSubscriptionId: subscriptionId,
+          status: "active",
+        });
+      }
       break;
     }
 
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice;
+      const invoice = event.data.object as any;
+      const subscriptionId = invoice.subscription;
 
-      const subscriptionId =
-        typeof invoice.subscription === "string"
-          ? invoice.subscription
-          : invoice.subscription?.id;
-
-      if (!subscriptionId) break;
-
-      await callConvex("/stripe/updateRoomStatus", {
-        stripeSubscriptionId: subscriptionId,
-        status: "past_due",
-      });
+      if (subscriptionId) {
+        await callConvex("/stripe/updateRoomStatus", {
+          stripeSubscriptionId: subscriptionId,
+          status: "past_due",
+        });
+      }
       break;
     }
 
