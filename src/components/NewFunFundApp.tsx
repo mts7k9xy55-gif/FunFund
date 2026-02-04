@@ -21,6 +21,8 @@ import RoomSelector from "./room/RoomSelector";
 import PaywallBanner from "./room/PaywallBanner";
 import DecisionModal from "./room/DecisionModal";
 import LayerInputs from "./layer/LayerInputs";
+import Dashboard from "./dashboard/Dashboard";
+import JoinRoomModal from "./room/JoinRoomModal";
 
 type Language = "ja" | "en";
 
@@ -45,6 +47,7 @@ export default function NewFunFundApp() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showLayerInputs, setShowLayerInputs] = useState(false);
+  const [isJoinRoomModalOpen, setIsJoinRoomModalOpen] = useState(false);
 
   // Convex queries & mutations
   const rootItems = useQuery(api.items.listRootItems) ?? [];
@@ -147,14 +150,23 @@ export default function NewFunFundApp() {
           </div>
           <div className="flex items-center gap-3">
             <SignedIn>
-              <RoomSelector
-                selectedRoomId={selectedRoomId}
-                onSelectRoom={setSelectedRoomId}
-                language={language}
-                onCreateRoom={() => {
-                  setSuccessMessage(language === "ja" ? "Roomを作成しました" : "Room created");
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <RoomSelector
+                  selectedRoomId={selectedRoomId}
+                  onSelectRoom={setSelectedRoomId}
+                  language={language}
+                  onCreateRoom={() => {
+                    setSuccessMessage(language === "ja" ? "Roomを作成しました" : "Room created");
+                  }}
+                />
+                <button
+                  onClick={() => setIsJoinRoomModalOpen(true)}
+                  className="px-3 py-1.5 rounded-lg bg-muted text-fg text-sm font-medium hover:bg-muted/80 transition-colors"
+                  title={language === "ja" ? "招待コードで参加" : "Join with invite code"}
+                >
+                  {language === "ja" ? "参加" : "Join"}
+                </button>
+              </div>
             </SignedIn>
             <button
               type="button"
@@ -177,46 +189,66 @@ export default function NewFunFundApp() {
             {/* 未認証時は誰もいない（スレッドを表示しない） */}
             <SignedIn>
               {selectedRoomId ? (
-                // Room選択時: threadsを表示
-                <div className="space-y-4">
-                  {roomThreads.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-muted-fg text-sm">
-                        {language === "ja" ? "まだスレッドがありません" : "No threads yet"}
-                      </p>
-                    </div>
-                  ) : (
-                    roomThreads.map((thread) => {
-                      const threadUser = users.find((u) => u._id === thread.createdBy);
-                      return (
-                        <div
-                          key={thread._id}
-                          className="bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                          onClick={() => {
-                            setSelectedThreadId(thread._id);
-                            setShowLayerInputs(true);
-                          }}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-semibold text-fg">{thread.title ?? thread.type}</h3>
-                            <span className="text-xs text-muted-fg">{thread.type}</span>
-                          </div>
-                          <p className="text-sm text-muted-fg mb-2">
-                            {language === "ja" ? "作成者" : "Created by"}: {threadUser?.name ?? "Unknown"}
-                          </p>
-                          {selectedThreadId === thread._id && showLayerInputs && (
-                            <div className="mt-4">
-                              <LayerInputs
-                                roomId={selectedRoomId}
-                                threadId={thread._id}
-                                language={language}
-                              />
+                // Room選択時: ダッシュボードとthreadsを表示
+                <div className="space-y-6">
+                  {/* ダッシュボード */}
+                  <Dashboard
+                    roomId={selectedRoomId}
+                    threadId={selectedThreadId ?? undefined}
+                    language={language}
+                  />
+
+                  {/* Threads一覧 */}
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold text-foreground">
+                      {language === "ja" ? "Threads" : "Threads"}
+                    </h2>
+                    {roomThreads.length === 0 ? (
+                      <div className="text-center py-12">
+                        <p className="text-muted-fg text-sm">
+                          {language === "ja" ? "まだスレッドがありません" : "No threads yet"}
+                        </p>
+                      </div>
+                    ) : (
+                      roomThreads.map((thread) => {
+                        const threadUser = users.find((u) => u._id === thread.createdBy);
+                        return (
+                          <div
+                            key={thread._id}
+                            className={`bg-card border border-border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
+                              selectedThreadId === thread._id
+                                ? "ring-2 ring-primary"
+                                : ""
+                            }`}
+                            onClick={() => {
+                              setSelectedThreadId(thread._id);
+                              setShowLayerInputs(true);
+                            }}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <h3 className="font-semibold text-fg">
+                                {thread.title ?? thread.type}
+                              </h3>
+                              <span className="text-xs text-muted-fg">{thread.type}</span>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
+                            <p className="text-sm text-muted-fg mb-2">
+                              {language === "ja" ? "作成者" : "Created by"}:{" "}
+                              {threadUser?.name ?? "Unknown"}
+                            </p>
+                            {selectedThreadId === thread._id && showLayerInputs && (
+                              <div className="mt-4">
+                                <LayerInputs
+                                  roomId={selectedRoomId}
+                                  threadId={thread._id}
+                                  language={language}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               ) : (
                 // 既存のitems表示（後方互換）
@@ -483,6 +515,16 @@ export default function NewFunFundApp() {
           onSuccess={(msg) => setSuccessMessage(msg)}
         />
       )}
+
+      <JoinRoomModal
+        isOpen={isJoinRoomModalOpen}
+        onClose={() => setIsJoinRoomModalOpen(false)}
+        onJoinSuccess={(roomId) => {
+          setSelectedRoomId(roomId);
+          setSuccessMessage(language === "ja" ? "Roomに参加しました" : "Joined room");
+        }}
+        language={language}
+      />
 
       {/* エラー/成功メッセージ */}
       {(errorMessage || successMessage) && (
