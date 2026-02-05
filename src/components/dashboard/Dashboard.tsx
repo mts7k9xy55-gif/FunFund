@@ -8,6 +8,9 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import EvaluationSliderGroup from "./EvaluationSliderGroup";
+import StatsCard from "./StatsCard";
+import ActivityFeed from "./ActivityFeed";
+import { Star, TrendingUp, Users, DollarSign } from "lucide-react";
 
 interface DashboardProps {
   roomId: Id<"rooms">;
@@ -164,10 +167,61 @@ export default function Dashboard({
     }
   };
 
+  // モックアクティビティデータ（実際のデータに置き換える）
+  const mockActivities = [
+    {
+      id: "1",
+      type: "evaluation" as const,
+      title: "新しい評価が追加されました",
+      description: "プロジェクト「サンプルプロジェクト」に評価が追加されました",
+      timestamp: Date.now() - 3600000,
+      user: "ユーザー1",
+    },
+    {
+      id: "2",
+      type: "project" as const,
+      title: "新しいプロジェクトが作成されました",
+      description: "プロジェクト「新機能開発」が作成されました",
+      timestamp: Date.now() - 7200000,
+      user: "ユーザー2",
+    },
+  ];
+
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-      {/* 仮想Fund残高表示 */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 rounded-xl p-6 border border-green-200 dark:border-green-800">
+    <div className="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+      {/* 統計カード */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title={language === "ja" ? "総評価数" : "Total Evaluations"}
+          value={virtualFund?.threadCount ?? 0}
+          icon={Star}
+          language={language}
+        />
+        <StatsCard
+          title={language === "ja" ? "仮想Fund残高" : "Virtual Fund Balance"}
+          value={`¥${(virtualFund?.balance ?? 0).toLocaleString()}`}
+          icon={DollarSign}
+          language={language}
+        />
+        <StatsCard
+          title={language === "ja" ? "アクティブプロジェクト" : "Active Projects"}
+          value={roomThreads?.length ?? 0}
+          icon={TrendingUp}
+          language={language}
+        />
+        <StatsCard
+          title={language === "ja" ? "メンバー数" : "Members"}
+          value={10}
+          icon={Users}
+          language={language}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 左側: 評価と分配提案 */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* 仮想Fund残高表示 */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-1">
@@ -286,14 +340,14 @@ export default function Dashboard({
         )}
       </div>
 
-      {/* 分配提案一覧 */}
-      {distributionProposals && distributionProposals.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4">
-            {language === "ja" ? "提案一覧" : "Proposals"}
-          </h2>
+          {/* 分配提案一覧 */}
+          {distributionProposals && distributionProposals.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                {language === "ja" ? "提案一覧" : "Proposals"}
+              </h2>
 
-          <div className="space-y-4">
+              <div className="space-y-4">
             {distributionProposals.map((proposal) => (
               <div
                 key={proposal._id}
@@ -355,9 +409,16 @@ export default function Dashboard({
                 </div>
               </div>
             ))}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* 右側: アクティビティフィード */}
+        <div className="lg:col-span-1">
+          <ActivityFeed activities={mockActivities} language={language} />
+        </div>
+      </div>
     </div>
   );
 }
