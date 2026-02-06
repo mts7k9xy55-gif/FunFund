@@ -51,6 +51,9 @@ export default function Dashboard({
     { roomId }
   );
 
+  // Room内のThread一覧を取得（統計用）
+  const roomThreads = useQuery(api.threads.listThreads, { roomId }) ?? [];
+
   // 自動計算された貢献度を取得
   const autoContributions = useQuery(
     api.distributions.calculateContributionsFromEvaluations,
