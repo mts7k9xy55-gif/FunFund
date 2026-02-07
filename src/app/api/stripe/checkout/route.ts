@@ -4,11 +4,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
 export async function POST(request: NextRequest) {
   try {
     const { roomId } = await request.json();
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripePriceId = process.env.STRIPE_PRICE_ID;
 
     if (!roomId) {
       return NextResponse.json(
@@ -16,6 +16,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!stripeSecretKey || !stripePriceId) {
+      return NextResponse.json(
+        { error: "Stripe configuration is missing" },
+        { status: 500 }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey);
 
     // Roomの存在確認（Convexから取得）
     // 注意: ここでは簡易的にroomIdのみを使用
@@ -27,7 +36,7 @@ export async function POST(request: NextRequest) {
       payment_method_types: ["card"],
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID!, // 環境変数から価格IDを取得
+          price: stripePriceId, // 環境変数から価格IDを取得
           quantity: 1,
         },
       ],

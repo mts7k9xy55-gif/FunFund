@@ -12,7 +12,7 @@ import { Id } from "./_generated/dataModel";
 export const createDistributionProposal = mutation({
   args: {
     roomId: v.id("rooms"),
-    threadId: v.optional(v.id("threads")),
+    threadId: v.id("threads"),
     contributions: v.array(
       v.object({
         userId: v.id("users"),
@@ -189,12 +189,15 @@ export const calculateContributionsFromEvaluations = query({
     }
 
     // Threadを取得
-    const threads = args.threadId
-      ? [await ctx.db.get(args.threadId)].filter(Boolean)
-      : await ctx.db
-          .query("threads")
-          .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-          .collect();
+    const selectedThread = args.threadId ? await ctx.db.get(args.threadId) : null;
+    const threads = selectedThread
+      ? [selectedThread]
+      : args.threadId
+        ? []
+        : await ctx.db
+            .query("threads")
+            .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+            .collect();
 
     if (threads.length === 0) {
       return [];
@@ -209,11 +212,11 @@ export const calculateContributionsFromEvaluations = query({
         .withIndex("by_threadId", (q) => q.eq("threadId", thread._id))
         .collect();
 
-      for (const eval of evaluations) {
-        if (!memberScores[eval.evaluatorId]) {
-          memberScores[eval.evaluatorId] = 0;
+      for (const evaluation of evaluations) {
+        if (!memberScores[evaluation.evaluatorId]) {
+          memberScores[evaluation.evaluatorId] = 0;
         }
-        memberScores[eval.evaluatorId] += eval.weightedScore;
+        memberScores[evaluation.evaluatorId] += evaluation.weightedScore;
       }
     }
 

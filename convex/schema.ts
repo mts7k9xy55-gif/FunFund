@@ -246,7 +246,7 @@ export default defineSchema({
   // 分配提案（貢献度ベース）
   distributionProposals: defineTable({
     roomId: v.id("rooms"),
-    threadId: v.id("threads"), // 関連するThread（オプション）
+    threadId: v.id("threads"), // 関連するThread
     proposedBy: v.id("users"), // 提案者
     contributions: v.array(v.object({
       userId: v.id("users"),

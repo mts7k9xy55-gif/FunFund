@@ -136,6 +136,15 @@ export default function Dashboard({
       return;
     }
 
+    if (!threadId) {
+      alert(
+        language === "ja"
+          ? "Threadが選択されていません"
+          : "Thread is not selected"
+      );
+      return;
+    }
+
     const totalAmount = virtualFund?.balance ?? 0;
 
     if (totalAmount === 0) {
@@ -150,7 +159,7 @@ export default function Dashboard({
     try {
       await createDistributionProposal({
         roomId,
-        threadId: threadId ?? undefined,
+        threadId,
         contributions: autoContributions,
         totalAmount,
       });
@@ -316,7 +325,7 @@ export default function Dashboard({
                   className="flex items-center justify-between p-3 bg-muted rounded-lg"
                 >
                   <span className="text-sm font-medium text-foreground">
-                    {contribution.userName ?? `User ${index + 1}`}
+                    {contribution.userId}
                   </span>
                   <span className="text-sm font-semibold text-primary">
                     {contribution.percentage.toFixed(1)}%
@@ -359,7 +368,7 @@ export default function Dashboard({
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-foreground">
                     {language === "ja" ? "提案者" : "Proposed by"}:{" "}
-                    {proposal.proposerName}
+                    {proposal.proposedBy}
                   </span>
                   <span
                     className={`text-xs px-2 py-1 rounded ${
@@ -395,7 +404,7 @@ export default function Dashboard({
                       key={idx}
                       className="flex items-center justify-between text-sm"
                     >
-                      <span className="text-foreground">{c.userName}</span>
+                      <span className="text-foreground">{c.userId}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">
                           {c.percentage.toFixed(1)}%

@@ -11,6 +11,8 @@
 import type * as _guards from "../_guards.js";
 import type * as connections from "../connections.js";
 import type * as decisions from "../decisions.js";
+import type * as distributions from "../distributions.js";
+import type * as evaluations from "../evaluations.js";
 import type * as executions from "../executions.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
@@ -35,6 +37,8 @@ declare const fullApi: ApiFromModules<{
   _guards: typeof _guards;
   connections: typeof connections;
   decisions: typeof decisions;
+  distributions: typeof distributions;
+  evaluations: typeof evaluations;
   executions: typeof executions;
   groups: typeof groups;
   http: typeof http;

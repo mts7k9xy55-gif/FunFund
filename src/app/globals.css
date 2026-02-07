@@ -2,6 +2,9 @@
 
 /* ===== FunFund Design System (Unified with LP) ===== */
 :root {
+  --font-geist-sans: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-geist-mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
   /* Background & Foreground */
   --bg: 249 250 251; /* #F9FAFB */
   --fg: 31 41 55; /* #1F2937 */

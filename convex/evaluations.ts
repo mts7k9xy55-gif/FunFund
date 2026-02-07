@@ -211,10 +211,10 @@ export const getEvaluationsByThread = query({
 
     // 評価者情報を取得
     const evaluationsWithUsers = await Promise.all(
-      evaluations.map(async (eval) => {
-        const evaluator = await ctx.db.get(eval.evaluatorId);
+      evaluations.map(async (evaluation) => {
+        const evaluator = await ctx.db.get(evaluation.evaluatorId);
         return {
-          ...eval,
+          ...evaluation,
           evaluatorName: evaluator?.name ?? "Unknown",
         };
       })

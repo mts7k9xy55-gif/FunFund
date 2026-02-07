@@ -129,7 +129,6 @@ export default function PublicListPage() {
                 title={preview.title}
                 description={preview.description || ""}
                 thumbnailUrl={preview.thumbnailUrl}
-                category={preview.category}
                 weightedScore={4.2} // TODO: 実際のスコアを取得
                 evaluationCount={12} // TODO: 実際の評価数を取得
                 currentAmount={500000} // TODO: 実際の金額を取得

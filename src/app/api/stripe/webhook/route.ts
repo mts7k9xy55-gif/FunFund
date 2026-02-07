@@ -1,16 +1,14 @@
 import { NextRequest } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-// Convex HTTP Action のベースURL
-const CONVEX_HTTP_BASE = process.env.NEXT_PUBLIC_CONVEX_URL!.replace(
-  /\.cloud$/,
-  ".cloud/api"
-);
-
 async function callConvex(path: string, body: Record<string, unknown>) {
-  const res = await fetch(`${CONVEX_HTTP_BASE}${path}`, {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!convexUrl) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
+  }
+  const convexHttpBase = convexUrl.replace(/\.cloud$/, ".cloud/api");
+
+  const res = await fetch(`${convexHttpBase}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -22,6 +20,15 @@ async function callConvex(path: string, body: Record<string, unknown>) {
 }
 
 export async function POST(req: NextRequest) {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeSecretKey || !stripeWebhookSecret) {
+    return new Response("Stripe configuration is missing", { status: 500 });
+  }
+
+  const stripe = new Stripe(stripeSecretKey);
+
   const sig = req.headers.get("stripe-signature");
   if (!sig) {
     return new Response("Missing signature", { status: 400 });
@@ -34,7 +41,7 @@ export async function POST(req: NextRequest) {
     event = stripe.webhooks.constructEvent(
       rawBody,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      stripeWebhookSecret
     );
   } catch (err) {
     console.error("Webhook signature verification failed", err);
