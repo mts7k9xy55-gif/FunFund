@@ -62,10 +62,25 @@ export default function PaywallBanner({ roomStatus, roomId, language }: PaywallB
                 throw new Error(data.error || "Failed to create checkout session");
               }
 
+              if (data.available === false) {
+                throw new Error(
+                  language === "ja"
+                    ? "現在この環境では決済設定が未完了です"
+                    : "Stripe checkout is not configured in this environment"
+                );
+              }
+
               // Checkout URLにリダイレクト
               if (data.url) {
                 window.location.href = data.url;
+                return;
               }
+
+              throw new Error(
+                language === "ja"
+                  ? "決済URLの取得に失敗しました"
+                  : "Failed to get checkout URL"
+              );
             } catch (error: any) {
               alert(error.message || (language === "ja" ? "決済セッションの作成に失敗しました" : "Failed to create checkout session"));
             } finally {

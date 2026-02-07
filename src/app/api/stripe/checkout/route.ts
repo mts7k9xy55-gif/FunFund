@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
 
     if (!stripeSecretKey || !stripePriceId) {
       return NextResponse.json(
-        { error: "Stripe configuration is missing" },
-        { status: 500 }
+        {
+          available: false,
+          error: "Stripe checkout is not configured",
+        },
+        { status: 200 }
       );
     }
 

@@ -4,7 +4,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { EVALUATION_CRITERIA } from "../../../convex/evaluations";
+import { EVALUATION_CRITERIA } from "@/constants/evaluationCriteria";
 
 type EvaluationMode = "open" | "closed";
 

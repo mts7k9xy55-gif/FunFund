@@ -3,10 +3,12 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/convex";
 
+const isVercelPreview = process.env.VERCEL_ENV === "preview";
+
 export const metadata: Metadata = {
   title: "FunFund",
   description: "判断の切れを可視化するプラットフォーム",
-  manifest: "/manifest.json",
+  manifest: isVercelPreview ? undefined : "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
