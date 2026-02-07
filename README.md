@@ -29,6 +29,15 @@ A crowdfunding platform with weighted evaluation system, built with Next.js and 
    NEXT_PUBLIC_CONVEX_URL=your-convex-deployment-url
    ```
 
+3. (v2 parallel rebuild) Optional runtime feature flags:
+   ```
+   NEXT_PUBLIC_V2_PUBLIC_ENABLED=true
+   NEXT_PUBLIC_V2_ROOM_ENABLED=true
+   NEXT_PUBLIC_V2_BILLING_ENABLED=true
+   NEXT_PUBLIC_V2_LEGACY_ENABLED=true
+   ```
+   - Defaults: `public=true`, `room=true`, `billing=true`, `legacy=true`.
+
 ### Convex Setup
 
 1. Create a Convex account at [convex.dev](https://convex.dev)
@@ -52,11 +61,16 @@ src/
 ├── app/              # Next.js App Router pages
 ├── lib/
 │   └── convex.tsx    # Convex client provider
+src_v2/
+├── features/         # v2 UI and feature modules
+└── server/           # v2 server-side service layer (billing, etc.)
 convex/
 ├── schema.ts         # Database schema definition
 ├── profiles.ts       # Profile queries and mutations
 ├── proposals.ts      # Proposal queries and mutations
 └── evaluations.ts    # Evaluation queries and mutations with weighted scoring
+convex_v2/
+└── schema.ts         # v2 normalized schema blueprint (parallel rebuild)
 ```
 
 ## Database Schema
@@ -96,6 +110,18 @@ The weighted average is calculated automatically in Convex and proposals can be 
 ```bash
 npx convex deploy
 ```
+
+## v2 Rebuild Artifacts
+
+- Architecture decision record:
+  - `docs/adr/0001-v2-rebuild-architecture.md`
+- Data migration mapping draft:
+  - `docs/migration/v1-to-v2-mapping.md`
+- New runtime entrypoints:
+  - `/public` and `/public/[id]` can switch between v1/v2 by feature flags.
+  - `/room` can switch between v1/v2 by feature flags.
+- New billing service layer:
+  - `src_v2/server/billing/*`
 
 ### CI/CD
 

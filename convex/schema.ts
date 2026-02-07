@@ -264,4 +264,52 @@ export default defineSchema({
     .index("by_roomId", ["roomId"])
     .index("by_threadId", ["threadId"])
     .index("by_proposedBy", ["proposedBy"]),
+
+  // v2公開プロジェクト（段階移行用）
+  publicProjectsV2: defineTable({
+    sourceItemId: v.optional(v.id("items")),
+    title: v.string(),
+    description: v.string(),
+    thumbnailUrl: v.optional(v.string()),
+    decisions: v.array(v.string()),
+    suitableFor: v.optional(v.string()),
+    notSuitableFor: v.optional(v.string()),
+    weightedScore: v.number(),
+    evaluationCount: v.number(),
+    currentAmount: v.number(),
+    goalAmount: v.number(),
+    daysRemaining: v.number(),
+    visibility: v.union(v.literal("public"), v.literal("private")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_visibility", ["visibility"])
+    .index("by_sourceItemId", ["sourceItemId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // 移行バックフィルの進捗管理
+  migrationBackfillState: defineTable({
+    tableName: v.string(),
+    lastCursor: v.optional(v.string()),
+    processedCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_tableName", ["tableName"]),
+
+  // dual-write失敗の補償キュー
+  dualWriteFailures: defineTable({
+    domain: v.string(),
+    operation: v.string(),
+    payload: v.string(),
+    error: v.string(),
+    retryCount: v.number(),
+    lastTriedAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_domain", ["domain"]),
+
+  // Stripe webhookの重複処理防止
+  stripeWebhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    processedAt: v.number(),
+  }).index("by_eventId", ["eventId"]),
 });

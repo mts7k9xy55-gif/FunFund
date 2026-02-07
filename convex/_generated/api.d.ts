@@ -26,6 +26,9 @@ import type * as rooms from "../rooms.js";
 import type * as stripe from "../stripe.js";
 import type * as threads from "../threads.js";
 import type * as users from "../users.js";
+import type * as v2Migration from "../v2Migration.js";
+import type * as v2Public from "../v2Public.js";
+import type * as v2Room from "../v2Room.js";
 
 import type {
   ApiFromModules,
@@ -52,6 +55,9 @@ declare const fullApi: ApiFromModules<{
   stripe: typeof stripe;
   threads: typeof threads;
   users: typeof users;
+  v2Migration: typeof v2Migration;
+  v2Public: typeof v2Public;
+  v2Room: typeof v2Room;
 }>;
 
 /**

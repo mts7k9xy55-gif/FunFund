@@ -2,8 +2,7 @@
 // Stripe Webhook用のHTTP Actions（Next.js API routeからfetchで呼び出される）
 
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -57,6 +56,36 @@ export const setRoomStripeInfoHttp = httpAction(async (ctx, request) => {
   });
 
   return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
+/**
+ * HTTP Action: Stripe webhook eventの重複登録を防止
+ * POST /stripe/registerEvent
+ */
+export const registerStripeEventHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const body = await request.json();
+  const { eventId, eventType } = body as {
+    eventId?: string;
+    eventType?: string;
+  };
+
+  if (!eventId || !eventType) {
+    return new Response("Missing eventId or eventType", { status: 400 });
+  }
+
+  const result = await ctx.runMutation(api.v2Migration.registerStripeWebhookEvent, {
+    eventId,
+    eventType,
+  });
+
+  return new Response(JSON.stringify(result), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

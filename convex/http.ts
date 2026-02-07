@@ -2,7 +2,7 @@
 // HTTP Actionのルーティング
 
 import { httpRouter } from "convex/server";
-import { updateRoomStatusHttp, setRoomStripeInfoHttp } from "./stripe";
+import { updateRoomStatusHttp, setRoomStripeInfoHttp, registerStripeEventHttp } from "./stripe";
 
 const http = httpRouter();
 
@@ -17,6 +17,12 @@ http.route({
   path: "/stripe/setRoomStripeInfo",
   method: "POST",
   handler: setRoomStripeInfoHttp,
+});
+
+http.route({
+  path: "/stripe/registerEvent",
+  method: "POST",
+  handler: registerStripeEventHttp,
 });
 
 export default http;
