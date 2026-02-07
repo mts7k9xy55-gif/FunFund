@@ -86,6 +86,11 @@ The weighted average is calculated automatically in Convex and proposals can be 
 2. Add the following environment variables:
    - `NEXT_PUBLIC_CONVEX_URL`: Your Convex deployment URL
 
+### Clerk Keys (Preview vs Production)
+
+- Preview or development deployments may use Clerk `test` keys. In that case, the browser warning about development keys is expected.
+- For production deployments, set Clerk `live` keys (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`) to remove the warning and production limits.
+
 ### Convex Deployment
 
 ```bash

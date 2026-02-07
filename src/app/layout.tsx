@@ -31,7 +31,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="ja">
         <head>
-          <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+          <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180-v2.png" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         </head>
