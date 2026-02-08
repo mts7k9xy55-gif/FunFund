@@ -10,7 +10,7 @@ import LayerInputs from "@/components/layer/LayerInputs";
 import DecisionModal from "@/components/room/DecisionModal";
 import PaywallBanner from "@/components/room/PaywallBanner";
 import RoomSelector from "@/components/room/RoomSelector";
-import { isV2LegacyHubEnabled } from "@/lib/featureFlags";
+import { isFreeTrialModeEnabled, isV2LegacyHubEnabled } from "@/lib/featureFlags";
 
 const LegacyHub = dynamic(() => import("@/components/NewFunFundApp"), {
   ssr: false,
@@ -74,6 +74,7 @@ export default function RoomPageV2() {
     () => roomThreads.find((thread) => thread._id === effectiveThreadId) ?? null,
     [effectiveThreadId, roomThreads]
   );
+  const freeTrialMode = isFreeTrialModeEnabled();
 
   const stanceLabel = (stance: "yes" | "no" | "hold") => {
     if (stance === "yes") return "賛成";
@@ -93,7 +94,10 @@ export default function RoomPageV2() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund Room</h1>
-            <p className="text-xs text-slate-500">Room-based funding workspace (v2)</p>
+            <p className="text-xs text-slate-500">
+              Room-based funding workspace (v2)
+              {freeTrialMode ? " / Free Trial Mode" : ""}
+            </p>
           </div>
           <RoomSelector
             selectedRoomId={selectedRoomId}

@@ -22,3 +22,7 @@ export function isV2BillingEnabled(): boolean {
 export function isV2LegacyHubEnabled(): boolean {
   return parseBooleanEnv(process.env.NEXT_PUBLIC_V2_LEGACY_ENABLED, true);
 }
+
+export function isFreeTrialModeEnabled(): boolean {
+  return parseBooleanEnv(process.env.NEXT_PUBLIC_FREE_TRIAL_MODE, true);
+}

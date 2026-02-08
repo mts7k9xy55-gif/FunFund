@@ -34,8 +34,9 @@ A crowdfunding platform with weighted evaluation system, built with Next.js and 
    NEXT_PUBLIC_V2_ROOM_ENABLED=true
    NEXT_PUBLIC_V2_BILLING_ENABLED=true
    NEXT_PUBLIC_V2_LEGACY_ENABLED=true
+   NEXT_PUBLIC_FREE_TRIAL_MODE=true
    ```
-   - Defaults: `room=true`, `billing=true`, `legacy=true`.
+   - Defaults: `room=true`, `billing=true`, `legacy=true`, `free_trial_mode=true`.
 
 ### Convex Setup
 

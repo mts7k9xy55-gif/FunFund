@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import CreateRoomModal from "./CreateRoomModal";
+import { isFreeTrialModeEnabled } from "@/lib/featureFlags";
 
 interface RoomSelectorProps {
   selectedRoomId: Id<"rooms"> | null;
@@ -25,6 +26,7 @@ export default function RoomSelector({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const rooms = useQuery(api.rooms.listRoomsForMe) ?? [];
   const createRoom = useMutation(api.rooms.createRoom);
+  const activateRoom = useMutation(api.rooms.activateRoom);
 
   const handleCreateRoom = async (
     name: string,
@@ -37,7 +39,10 @@ export default function RoomSelector({
         isPrivate,
         evaluationMode,
       });
-      // Roomはdraft状態で作成される（Stripe決済後にactiveになる）
+      if (isFreeTrialModeEnabled()) {
+        // 試用モードでは作成直後に有効化して、決済なしで操作できるようにする。
+        await activateRoom({ roomId });
+      }
       onSelectRoom(roomId);
       onCreateRoom();
     } catch (error: any) {
