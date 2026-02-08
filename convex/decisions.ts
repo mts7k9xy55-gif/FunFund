@@ -4,7 +4,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUser, requireWritePermission, requireReason } from "./_guards";
-import { Id } from "./_generated/dataModel";
 
 /**
  * 判断を下す
@@ -123,13 +122,15 @@ export const listDecisions = query({
     const decisionsWithReasons = await Promise.all(
       decisions.map(async (d) => {
         const reasonMessage = await ctx.db.get(d.reasonMessageId);
+        const author = await ctx.db.get(d.createdBy);
         return {
           ...d,
+          authorName: author?.name ?? "Unknown",
           reason: reasonMessage?.body ?? "",
         };
       })
     );
 
-    return decisionsWithReasons;
+    return decisionsWithReasons.sort((a, b) => b.createdAt - a.createdAt);
   },
 });

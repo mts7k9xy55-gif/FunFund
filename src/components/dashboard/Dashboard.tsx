@@ -10,6 +10,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import EvaluationSliderGroup from "./EvaluationSliderGroup";
 import StatsCard from "./StatsCard";
 import ActivityFeed from "./ActivityFeed";
+import { EVALUATION_CRITERIA } from "@/constants/evaluationCriteria";
 import { Star, TrendingUp, Users, DollarSign } from "lucide-react";
 
 interface DashboardProps {
@@ -41,6 +42,10 @@ export default function Dashboard({
     api.evaluations.getMyEvaluation,
     threadId ? { threadId } : "skip"
   );
+  const allEvaluations = useQuery(
+    api.evaluations.getEvaluationsByThread,
+    threadId ? { threadId } : "skip"
+  );
 
   // 仮想Fund残高を取得
   const virtualFund = useQuery(api.rooms.getRoomVirtualFundBalance, { roomId });
@@ -53,6 +58,32 @@ export default function Dashboard({
 
   // Room内のThread一覧を取得（統計用）
   const roomThreads = useQuery(api.threads.listThreads, { roomId }) ?? [];
+  const criteriaLabels = EVALUATION_CRITERIA[evaluationMode];
+
+  const averageWeights = (() => {
+    const rows = allEvaluations ?? [];
+    if (rows.length === 0) {
+      return null;
+    }
+    const sums = rows.reduce(
+      (acc, row) => {
+        acc[0] += row.weight1;
+        acc[1] += row.weight2;
+        acc[2] += row.weight3;
+        acc[3] += row.weight4;
+        acc[4] += row.weight5;
+        return acc;
+      },
+      [0, 0, 0, 0, 0] as [number, number, number, number, number]
+    );
+    return sums.map((value) => Math.round((value / rows.length) * 10) / 10) as [
+      number,
+      number,
+      number,
+      number,
+      number
+    ];
+  })();
 
   // 自動計算された貢献度を取得
   const autoContributions = useQuery(
@@ -301,6 +332,33 @@ export default function Dashboard({
           >
             {language === "ja" ? "評価を保存" : "Save Evaluation"}
           </button>
+
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-semibold text-slate-900">
+              {language === "ja" ? "重みの見える化" : "Weight Breakdown"}
+            </h3>
+            <div className="mt-3 grid gap-2 text-sm text-slate-700">
+              {[0, 1, 2, 3, 4].map((index) => {
+                const key = `score${index + 1}` as keyof typeof criteriaLabels;
+                const myWeight = weights[index];
+                const avgWeight = averageWeights?.[index];
+                return (
+                  <div key={key} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{criteriaLabels[key]}</span>
+                      <span>
+                        {language === "ja" ? "あなた" : "You"}: {myWeight}%
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {language === "ja" ? "参加者平均" : "Team Avg"}:{" "}
+                      {avgWeight !== undefined ? `${avgWeight}%` : language === "ja" ? "まだ未集計" : "No data yet"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

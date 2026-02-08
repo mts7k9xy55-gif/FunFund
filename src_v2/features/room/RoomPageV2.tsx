@@ -7,6 +7,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import Dashboard from "@/components/dashboard/Dashboard";
 import LayerInputs from "@/components/layer/LayerInputs";
+import DecisionModal from "@/components/room/DecisionModal";
 import PaywallBanner from "@/components/room/PaywallBanner";
 import RoomSelector from "@/components/room/RoomSelector";
 import { isV2LegacyHubEnabled } from "@/lib/featureFlags";
@@ -32,6 +33,8 @@ export default function RoomPageV2() {
   const [threadError, setThreadError] = useState<string | null>(null);
   const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
+  const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null);
 
   const effectiveRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
 
@@ -60,8 +63,29 @@ export default function RoomPageV2() {
     }
     return roomThreads[0]._id;
   }, [roomThreads, selectedThreadId]);
+  const decisionsQuery = useQuery(
+    api.decisions.listDecisions,
+    effectiveThreadId ? { threadId: effectiveThreadId } : "skip"
+  );
+  const decisions = useMemo(() => decisionsQuery ?? [], [decisionsQuery]);
 
   const roomMetrics = workspace?.metrics;
+  const selectedThread = useMemo(
+    () => roomThreads.find((thread) => thread._id === effectiveThreadId) ?? null,
+    [effectiveThreadId, roomThreads]
+  );
+
+  const stanceLabel = (stance: "yes" | "no" | "hold") => {
+    if (stance === "yes") return "賛成";
+    if (stance === "no") return "反対";
+    return "保留";
+  };
+
+  const stanceClass = (stance: "yes" | "no" | "hold") => {
+    if (stance === "yes") return "bg-green-100 text-green-700";
+    if (stance === "no") return "bg-red-100 text-red-700";
+    return "bg-amber-100 text-amber-700";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
@@ -193,6 +217,57 @@ export default function RoomPageV2() {
               </div>
 
               {effectiveThreadId ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">判断タイムライン</h2>
+                      <p className="text-xs text-slate-500">
+                        Thread: {selectedThread?.title ?? selectedThread?.type ?? "Untitled"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={selectedRoom.status !== "active"}
+                      onClick={() => {
+                        setDecisionFeedback(null);
+                        setIsDecisionModalOpen(true);
+                      }}
+                      className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      判断する
+                    </button>
+                  </div>
+
+                  {decisionFeedback ? (
+                    <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                      {decisionFeedback}
+                    </div>
+                  ) : null}
+
+                  {decisions.length === 0 ? (
+                    <p className="text-sm text-slate-500">まだ判断はありません。</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {decisions.map((decision) => (
+                        <article key={decision._id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <span className={`rounded px-2 py-0.5 text-xs font-semibold ${stanceClass(decision.stance)}`}>
+                              {stanceLabel(decision.stance)}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {new Date(decision.createdAt).toLocaleString("ja-JP")}
+                            </span>
+                          </div>
+                          <p className="text-xs font-semibold text-slate-700">{decision.authorName}</p>
+                          <p className="mt-1 text-sm text-slate-700">{decision.reason}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {effectiveThreadId ? (
                 <LayerInputs roomId={selectedRoom._id} threadId={effectiveThreadId} language="ja" />
               ) : null}
             </div>
@@ -273,6 +348,18 @@ export default function RoomPageV2() {
           </div>
         </aside>
       </main>
+
+      {effectiveRoomId && effectiveThreadId ? (
+        <DecisionModal
+          isOpen={isDecisionModalOpen}
+          onClose={() => setIsDecisionModalOpen(false)}
+          roomId={effectiveRoomId}
+          threadId={effectiveThreadId}
+          language="ja"
+          onError={(message) => setDecisionFeedback(message)}
+          onSuccess={(message) => setDecisionFeedback(message)}
+        />
+      ) : null}
     </div>
   );
 }
