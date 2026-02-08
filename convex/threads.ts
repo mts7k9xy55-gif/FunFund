@@ -134,10 +134,24 @@ export const getThread = query({
       .collect();
 
     // 判断一覧
-    const decisions = await ctx.db
+    const decisionsRaw = await ctx.db
       .query("decisions")
       .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
       .collect();
+
+    const decisions = decisionsRaw.filter((decision) => {
+      const visibility = decision.visibility ?? "private";
+      if (decision.createdBy === user._id) {
+        return true;
+      }
+      if (visibility === "public") {
+        return true;
+      }
+      if (visibility === "shared_to_target" && decision.targetUserId === user._id) {
+        return true;
+      }
+      return false;
+    });
 
     // 実行ログ一覧
     const executions = await ctx.db

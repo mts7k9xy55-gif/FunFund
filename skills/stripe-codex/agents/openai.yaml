@@ -1,0 +1,5 @@
+interface:
+  display_name: "Stripe Setup Helper"
+  short_description: "Verify and complete Stripe setup for this repo"
+  default_prompt: "Use $stripe-codex to verify Stripe setup and fix missing configuration."
+

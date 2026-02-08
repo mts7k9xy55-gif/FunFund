@@ -157,6 +157,46 @@ export const updateDistributionProposalStatus = mutation({
       updatedAt: Date.now(),
     });
 
+    if (args.status === "accepted") {
+      const now = Date.now();
+      for (const contribution of proposal.contributions) {
+        const amount = Math.max(
+          0,
+          Math.round((proposal.totalAmount * contribution.percentage) / 100)
+        );
+
+        const payoutAccounts = await ctx.db
+          .query("payoutAccounts")
+          .withIndex("by_userId", (q) => q.eq("userId", contribution.userId))
+          .collect();
+
+        const activeAccounts = payoutAccounts.filter(
+          (account) => account.status === "active"
+        );
+        const selectedAccount =
+          activeAccounts.find((account) => account.isDefault) ??
+          activeAccounts[0];
+
+        await ctx.db.insert("payoutLedger", {
+          roomId: proposal.roomId,
+          recipientUserId: contribution.userId,
+          amount,
+          currency: "JPY",
+          status: selectedAccount ? "pending" : "requires_method",
+          method: selectedAccount?.method ?? "unspecified",
+          requestedBy: user._id,
+          settledBy: undefined,
+          payoutAccountId: selectedAccount?._id,
+          distributionProposalId: proposal._id,
+          requestedAt: now,
+          settledAt: undefined,
+          note: "Created from accepted distribution proposal",
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+
     return args.proposalId;
   },
 });
@@ -203,8 +243,9 @@ export const calculateContributionsFromEvaluations = query({
       return [];
     }
 
-    // 各メンバーの評価スコア合計を計算
+    // 各メンバーの評価スコア合計を計算（effectiveWeightを適用）
     const memberScores: Record<string, number> = {};
+    const weightCache: Record<string, number> = {};
 
     for (const thread of threads) {
       const evaluations = await ctx.db
@@ -213,10 +254,27 @@ export const calculateContributionsFromEvaluations = query({
         .collect();
 
       for (const evaluation of evaluations) {
+        if (weightCache[evaluation.evaluatorId] === undefined) {
+          const override = await ctx.db
+            .query("roomWeightOverrides")
+            .withIndex("by_room_user", (q) =>
+              q.eq("roomId", args.roomId).eq("userId", evaluation.evaluatorId)
+            )
+            .first();
+          const profile = await ctx.db
+            .query("userWeightProfiles")
+            .withIndex("by_userId", (q) => q.eq("userId", evaluation.evaluatorId))
+            .first();
+
+          weightCache[evaluation.evaluatorId] =
+            override?.projectWeight ?? profile?.globalWeight ?? 1;
+        }
+
         if (!memberScores[evaluation.evaluatorId]) {
           memberScores[evaluation.evaluatorId] = 0;
         }
-        memberScores[evaluation.evaluatorId] += evaluation.weightedScore;
+        memberScores[evaluation.evaluatorId] +=
+          evaluation.weightedScore * weightCache[evaluation.evaluatorId];
       }
     }
 

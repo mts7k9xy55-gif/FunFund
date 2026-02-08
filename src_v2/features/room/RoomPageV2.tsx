@@ -6,10 +6,16 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import Dashboard from "@/components/dashboard/Dashboard";
+import DecisionModal from "@/components/room/DecisionModal";
 import LayerInputs from "@/components/layer/LayerInputs";
 import PaywallBanner from "@/components/room/PaywallBanner";
 import RoomSelector from "@/components/room/RoomSelector";
-import { isV2LegacyHubEnabled } from "@/lib/featureFlags";
+import {
+  isDecisionV2Enabled,
+  isPayoutsV1Enabled,
+  isV2LegacyHubEnabled,
+  isWeightsV2Enabled,
+} from "@/lib/featureFlags";
 
 const LegacyHub = dynamic(() => import("@/components/NewFunFundApp"), {
   ssr: false,
@@ -21,6 +27,12 @@ export default function RoomPageV2() {
   const rooms = useMemo(() => roomsQuery ?? [], [roomsQuery]);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
   const seedPublicProjects = useMutation(api.v2Public.seedPublicProjectsFromLegacy);
+  const setEvaluatorPublishConsent = useMutation(api.decisions.setEvaluatorPublishConsent);
+  const setTargetPublishConsent = useMutation(api.decisions.setTargetPublishConsent);
+  const setRoomWeightOverride = useMutation(api.weights.setRoomWeightOverride);
+  const setMyWeightProfileVisibility = useMutation(
+    api.weights.updateMyWeightProfileVisibility
+  );
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<Id<"threads"> | null>(null);
   const [showLegacyHub, setShowLegacyHub] = useState(false);
@@ -32,6 +44,20 @@ export default function RoomPageV2() {
   const [threadError, setThreadError] = useState<string | null>(null);
   const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
+  const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null);
+  const [settingConsentId, setSettingConsentId] = useState<string | null>(null);
+  const [overrideUserId, setOverrideUserId] = useState<Id<"users"> | "">("");
+  const [overrideWeight, setOverrideWeight] = useState("1.0");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
+  const [payoutAmount, setPayoutAmount] = useState("1000");
+  const [payoutMethod, setPayoutMethod] = useState<"stripe_connect" | "bank_account">(
+    "bank_account"
+  );
+  const [bankNameInput, setBankNameInput] = useState("");
+  const [bankLast4Input, setBankLast4Input] = useState("");
+  const [workingAction, setWorkingAction] = useState<string | null>(null);
 
   const effectiveRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
 
@@ -45,8 +71,26 @@ export default function RoomPageV2() {
     effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
   );
   const roomThreads = useMemo(() => roomThreadsQuery ?? [], [roomThreadsQuery]);
+  const roomMembers = useQuery(
+    api.rooms.listRoomMembers,
+    effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+  );
   const workspace = useQuery(
     api.v2Room.getRoomWorkspace,
+    effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+  );
+  const myWeightProfile = useQuery(api.weights.getMyWeightProfile, {});
+  const roomWeightOverrides = useQuery(
+    api.weights.listRoomWeightOverrides,
+    effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+  );
+  const myPayoutAccounts = useQuery(api.payouts.listMyPayoutAccounts, {});
+  const membersMissingPayout = useQuery(
+    api.payouts.listMembersMissingPayoutMethod,
+    effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+  );
+  const roomPayoutLedger = useQuery(
+    api.payouts.listRoomPayoutLedger,
     effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
   );
   const migrationSnapshot = useQuery(api.v2Migration.snapshotMigrationCounts, {});
@@ -61,7 +105,146 @@ export default function RoomPageV2() {
     return roomThreads[0]._id;
   }, [roomThreads, selectedThreadId]);
 
+  const decisions = useQuery(
+    api.decisions.listDecisions,
+    effectiveThreadId ? { threadId: effectiveThreadId } : "skip"
+  );
+
   const roomMetrics = workspace?.metrics;
+
+  const decisionRows = decisions ?? [];
+  const roomMembersRows = roomMembers ?? [];
+  const weightOverrideRows = roomWeightOverrides ?? [];
+  const payoutAccounts = myPayoutAccounts ?? [];
+  const missingPayoutRows = membersMissingPayout ?? [];
+  const payoutLedgerRows = roomPayoutLedger ?? [];
+
+  const handleApplyWeightOverride = async () => {
+    if (!effectiveRoomId || !overrideUserId) {
+      return;
+    }
+    const parsed = Number(overrideWeight);
+    if (!Number.isFinite(parsed) || parsed < 0.5 || parsed > 2.5) {
+      setDecisionFeedback("重みは0.5〜2.5で指定してください");
+      return;
+    }
+
+    setWorkingAction("weight_override");
+    setDecisionFeedback(null);
+    try {
+      await setRoomWeightOverride({
+        roomId: effectiveRoomId,
+        userId: overrideUserId,
+        projectWeight: parsed,
+        reason: overrideReason.trim() ? overrideReason.trim() : undefined,
+      });
+      setDecisionFeedback("重みオーバーライドを保存しました");
+      setOverrideReason("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "重みオーバーライドの保存に失敗しました";
+      setDecisionFeedback(message);
+    } finally {
+      setWorkingAction(null);
+    }
+  };
+
+  const postJson = async <T extends Record<string, unknown>>(
+    path: string,
+    payload: Record<string, unknown>
+  ): Promise<T> => {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!response.ok) {
+      const message =
+        typeof body.error === "string"
+          ? body.error
+          : `Request failed: ${response.status}`;
+      throw new Error(message);
+    }
+    return body as T;
+  };
+
+  const handleStripeOnboard = async () => {
+    setWorkingAction("stripe_onboard");
+    setPayoutMessage(null);
+    try {
+      const result = await postJson<{ url?: string; ok?: boolean }>(
+        "/api/payouts/stripe/onboard",
+        {
+        roomId: effectiveRoomId,
+        }
+      );
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      setPayoutMessage("Stripe onboarding URLを取得できませんでした");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Stripe onboardingに失敗しました";
+      setPayoutMessage(message);
+    } finally {
+      setWorkingAction(null);
+    }
+  };
+
+  const handleBankRegister = async () => {
+    if (!bankNameInput.trim() || bankLast4Input.trim().length !== 4) {
+      setPayoutMessage("銀行名と口座下4桁を入力してください");
+      return;
+    }
+
+    setWorkingAction("bank_register");
+    setPayoutMessage(null);
+    try {
+      await postJson("/api/payouts/bank/register", {
+        bankName: bankNameInput.trim(),
+        accountLast4: bankLast4Input.trim(),
+      });
+      setPayoutMessage("銀行口座を登録しました");
+      setBankNameInput("");
+      setBankLast4Input("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "銀行口座登録に失敗しました";
+      setPayoutMessage(message);
+    } finally {
+      setWorkingAction(null);
+    }
+  };
+
+  const handlePayoutRequest = async () => {
+    if (!effectiveRoomId) {
+      return;
+    }
+    const amount = Number(payoutAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPayoutMessage("送金金額を正しく入力してください");
+      return;
+    }
+
+    setWorkingAction("payout_request");
+    setPayoutMessage(null);
+    try {
+      await postJson("/api/payouts/request", {
+        roomId: effectiveRoomId,
+        amount,
+        method: payoutMethod,
+      });
+      setPayoutMessage("送金リクエストを登録しました");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "送金リクエストに失敗しました";
+      setPayoutMessage(message);
+    } finally {
+      setWorkingAction(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
@@ -195,6 +378,109 @@ export default function RoomPageV2() {
               {effectiveThreadId ? (
                 <LayerInputs roomId={selectedRoom._id} threadId={effectiveThreadId} language="ja" />
               ) : null}
+
+              {isDecisionV2Enabled() && effectiveThreadId ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-900">判断 (1-10)</h2>
+                    <button
+                      type="button"
+                      onClick={() => setIsDecisionModalOpen(true)}
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      判断を追加
+                    </button>
+                  </div>
+
+                  {decisionRows.length === 0 ? (
+                    <p className="text-sm text-slate-500">表示可能な判断はまだありません。</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {decisionRows.map((decision) => (
+                        <div key={decision._id} className="rounded-xl border border-slate-200 p-4">
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="rounded bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">
+                              Score {decision.score}
+                            </span>
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700">
+                              {decision.visibility}
+                            </span>
+                            <span className="text-slate-500">by {decision.evaluatorName}</span>
+                            {decision.targetUserName ? (
+                              <span className="text-slate-500">target: {decision.targetUserName}</span>
+                            ) : null}
+                          </div>
+                          <p className="mt-2 text-sm text-slate-700">{decision.reason}</p>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {decision.canCurrentUserSetEvaluatorConsent ? (
+                              <button
+                                type="button"
+                                disabled={settingConsentId === decision._id}
+                                onClick={async () => {
+                                  setSettingConsentId(decision._id);
+                                  setDecisionFeedback(null);
+                                  try {
+                                    await setEvaluatorPublishConsent({
+                                      decisionId: decision._id,
+                                      consent: !(decision.publishConsentByEvaluator ?? false),
+                                    });
+                                  } catch (error) {
+                                    const message =
+                                      error instanceof Error
+                                        ? error.message
+                                        : "公開同意の更新に失敗しました";
+                                    setDecisionFeedback(message);
+                                  } finally {
+                                    setSettingConsentId(null);
+                                  }
+                                }}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                公開同意（評価者）: {(decision.publishConsentByEvaluator ?? false) ? "ON" : "OFF"}
+                              </button>
+                            ) : null}
+
+                            {decision.canCurrentUserSetTargetConsent ? (
+                              <button
+                                type="button"
+                                disabled={settingConsentId === decision._id}
+                                onClick={async () => {
+                                  setSettingConsentId(decision._id);
+                                  setDecisionFeedback(null);
+                                  try {
+                                    await setTargetPublishConsent({
+                                      decisionId: decision._id,
+                                      consent: !(decision.publishConsentByTarget ?? false),
+                                    });
+                                  } catch (error) {
+                                    const message =
+                                      error instanceof Error
+                                        ? error.message
+                                        : "公開同意の更新に失敗しました";
+                                    setDecisionFeedback(message);
+                                  } finally {
+                                    setSettingConsentId(null);
+                                  }
+                                }}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                公開同意（対象者）: {(decision.publishConsentByTarget ?? false) ? "ON" : "OFF"}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {decisionFeedback ? (
+                <div className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {decisionFeedback}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-600">
@@ -251,6 +537,178 @@ export default function RoomPageV2() {
               {migrationMessage ? <p className="mt-2 text-xs text-slate-500">{migrationMessage}</p> : null}
             </div>
 
+            {isWeightsV2Enabled() ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900">Weight Profile</h2>
+                <div className="mt-3 space-y-2 text-sm text-slate-700">
+                  <p>Global Weight: {myWeightProfile?.globalWeight ?? 1}</p>
+                  <p>Credibility: {myWeightProfile?.globalCredibilityScore ?? 50}</p>
+                  <label className="flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={myWeightProfile?.publicProfileEnabled ?? false}
+                      onChange={async (event) => {
+                        try {
+                          await setMyWeightProfileVisibility({
+                            publicProfileEnabled: event.target.checked,
+                          });
+                        } catch (error) {
+                          const message =
+                            error instanceof Error
+                              ? error.message
+                              : "公開設定の更新に失敗しました";
+                          setDecisionFeedback(message);
+                        }
+                      }}
+                    />
+                    実績（信憑性）をプロフィールで公開
+                  </label>
+                </div>
+
+                {selectedRoom?.myRole === "owner" && effectiveRoomId ? (
+                  <div className="mt-4 border-t border-slate-200 pt-4">
+                    <h3 className="text-sm font-semibold text-slate-900">プロジェクト別重み設定</h3>
+                    <div className="mt-2 space-y-2">
+                      <select
+                        value={overrideUserId}
+                        onChange={(event) =>
+                          setOverrideUserId(event.target.value as Id<"users"> | "")
+                        }
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        <option value="">ユーザーを選択</option>
+                        {roomMembersRows.map((member) => (
+                          <option key={member._id} value={member.userId}>
+                            {member.userName} ({member.role})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={overrideWeight}
+                        onChange={(event) => setOverrideWeight(event.target.value)}
+                        placeholder="重み (0.5 - 2.5)"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={overrideReason}
+                        onChange={(event) => setOverrideReason(event.target.value)}
+                        placeholder="理由（任意）"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        disabled={workingAction === "weight_override"}
+                        onClick={handleApplyWeightOverride}
+                        className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {workingAction === "weight_override" ? "保存中..." : "重みを保存"}
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-1 text-xs text-slate-500">
+                      {weightOverrideRows.length === 0 ? (
+                        <p>オーバーライド未設定</p>
+                      ) : (
+                        weightOverrideRows.map((override) => (
+                          <p key={override._id}>
+                            {override.userId}: {override.projectWeight}
+                          </p>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {isPayoutsV1Enabled() ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900">Payout Methods</h2>
+                <div className="mt-3 space-y-3">
+                  <button
+                    type="button"
+                    disabled={workingAction === "stripe_onboard"}
+                    onClick={handleStripeOnboard}
+                    className="w-full rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {workingAction === "stripe_onboard"
+                      ? "Stripe連携中..."
+                      : "Stripe Connectを連携"}
+                  </button>
+
+                  <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                    <p className="text-xs font-semibold text-slate-700">
+                      銀行口座を登録（試用フェーズ）
+                    </p>
+                    <input
+                      value={bankNameInput}
+                      onChange={(event) => setBankNameInput(event.target.value)}
+                      placeholder="銀行名"
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    />
+                    <input
+                      value={bankLast4Input}
+                      onChange={(event) => setBankLast4Input(event.target.value)}
+                      placeholder="口座下4桁"
+                      maxLength={4}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    />
+                    <button
+                      type="button"
+                      disabled={workingAction === "bank_register"}
+                      onClick={handleBankRegister}
+                      className="w-full rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {workingAction === "bank_register" ? "登録中..." : "銀行口座を保存"}
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                    <p className="text-xs font-semibold text-slate-700">送金リクエスト</p>
+                    <input
+                      value={payoutAmount}
+                      onChange={(event) => setPayoutAmount(event.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      placeholder="金額"
+                    />
+                    <select
+                      value={payoutMethod}
+                      onChange={(event) =>
+                        setPayoutMethod(event.target.value as "stripe_connect" | "bank_account")
+                      }
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    >
+                      <option value="bank_account">bank_account</option>
+                      <option value="stripe_connect">stripe_connect</option>
+                    </select>
+                    <button
+                      type="button"
+                      disabled={workingAction === "payout_request"}
+                      onClick={handlePayoutRequest}
+                      className="w-full rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {workingAction === "payout_request"
+                        ? "登録中..."
+                        : "送金リクエストを作成"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2 text-xs text-slate-600">
+                  <p>登録口座数: {payoutAccounts.length}</p>
+                  <p>送金台帳件数: {payoutLedgerRows.length}</p>
+                  {missingPayoutRows.length > 0 ? (
+                    <p className="text-amber-700">
+                      送金方法未登録メンバー:{" "}
+                      {missingPayoutRows.map((row) => row.userName).join(", ")}
+                    </p>
+                  ) : (
+                    <p className="text-green-700">全メンバーが送金方法を登録済み</p>
+                  )}
+                  {payoutMessage ? <p>{payoutMessage}</p> : null}
+                </div>
+              </div>
+            ) : null}
+
             {isV2LegacyHubEnabled() ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -273,6 +731,18 @@ export default function RoomPageV2() {
           </div>
         </aside>
       </main>
+
+      {isDecisionV2Enabled() && selectedRoom && effectiveThreadId ? (
+        <DecisionModal
+          isOpen={isDecisionModalOpen}
+          onClose={() => setIsDecisionModalOpen(false)}
+          roomId={selectedRoom._id}
+          threadId={effectiveThreadId}
+          language="ja"
+          onError={(message) => setDecisionFeedback(message)}
+          onSuccess={(message) => setDecisionFeedback(message)}
+        />
+      ) : null}
     </div>
   );
 }

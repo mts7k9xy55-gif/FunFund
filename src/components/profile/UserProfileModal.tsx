@@ -3,7 +3,8 @@
 
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -22,12 +23,21 @@ export default function UserProfileModal({
     api.items.getUserReputation,
     userId ? { userId } : "skip"
   );
+  const weightProfile = useQuery(
+    api.weights.getWeightProfileByUser,
+    userId ? { userId } : "skip"
+  );
   const evaluations = useQuery(
     api.items.getUserEvaluations,
     userId ? { userId } : "skip"
   );
   const users = useQuery(api.users.listUsers);
-  const user = users?.find((u) => u._id === userId);
+  const viewedUser = users?.find((u) => u._id === userId);
+  const { user: clerkUser } = useUser();
+  const updateWeightProfileVisibility = useMutation(
+    api.weights.updateMyWeightProfileVisibility
+  );
+  const isOwnProfile = clerkUser?.id === viewedUser?.userId;
 
   if (!isOpen || !userId) return null;
 
@@ -61,10 +71,10 @@ export default function UserProfileModal({
           {/* ユーザー情報 */}
           <div>
             <h3 className="text-xl font-bold text-fg mb-2">
-              {user?.name ?? "Unknown User"}
+              {viewedUser?.name ?? "Unknown User"}
             </h3>
             <div className="text-sm text-muted-fg">
-              {language === "ja" ? "ユーザーID" : "User ID"}: {user?.userId}
+              {language === "ja" ? "ユーザーID" : "User ID"}: {viewedUser?.userId}
             </div>
           </div>
 
@@ -85,6 +95,41 @@ export default function UserProfileModal({
                 ? "過去の判断履歴に基づく信頼度（フラクタル評価）"
                 : "Trust score based on past evaluation history (fractal evaluation)"}
             </p>
+          </div>
+
+          {/* 重みプロファイル */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-sm font-medium text-slate-600">
+                {language === "ja" ? "重み (global)" : "Global Weight"}
+              </span>
+              <span className="text-2xl font-bold text-blue-700">
+                {weightProfile?.globalWeight?.toFixed(2) ??
+                  (language === "ja" ? "非公開" : "Private")}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600">
+              {language === "ja"
+                ? "FunFund全体で使われる基準重み"
+                : "Baseline weight used across FunFund"}
+            </p>
+
+            {isOwnProfile ? (
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={weightProfile?.publicProfileEnabled ?? false}
+                  onChange={async (event) => {
+                    await updateWeightProfileVisibility({
+                      publicProfileEnabled: event.target.checked,
+                    });
+                  }}
+                />
+                {language === "ja"
+                  ? "この重みと実績を公開する"
+                  : "Publish this weight profile"}
+              </label>
+            ) : null}
           </div>
 
           {/* 評価履歴の内訳（Σ=x） */}

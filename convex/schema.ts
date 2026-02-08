@@ -155,18 +155,58 @@ export default defineSchema({
   decisions: defineTable({
     roomId: v.id("rooms"),
     threadId: v.id("threads"),
-    stance: v.union(
-      v.literal("yes"),
-      v.literal("no"),
-      v.literal("hold")
+    stance: v.optional(
+      v.union(
+        v.literal("yes"),
+        v.literal("no"),
+        v.literal("hold")
+      )
     ),
+    score: v.optional(v.number()), // 1-10
+    visibility: v.optional(
+      v.union(
+        v.literal("private"),
+        v.literal("shared_to_target"),
+        v.literal("public")
+      )
+    ),
+    targetUserId: v.optional(v.id("users")),
+    publishConsentByEvaluator: v.optional(v.boolean()),
+    publishConsentByTarget: v.optional(v.boolean()),
     reasonMessageId: v.id("messages"), // reasonはmessagesテーブルに保存
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_room", ["roomId"])
     .index("by_thread", ["threadId"])
-    .index("by_createdBy", ["createdBy"]),
+    .index("by_createdBy", ["createdBy"])
+    .index("by_targetUserId", ["targetUserId"]),
+
+  // ユーザー重みプロファイル（FunFund全体）
+  userWeightProfiles: defineTable({
+    userId: v.id("users"),
+    globalWeight: v.number(),
+    globalCredibilityScore: v.number(),
+    publicProfileEnabled: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_publicProfileEnabled", ["publicProfileEnabled"]),
+
+  // Room単位の重みオーバーライド
+  roomWeightOverrides: defineTable({
+    roomId: v.id("rooms"),
+    userId: v.id("users"),
+    projectWeight: v.number(),
+    reason: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_room", ["roomId"])
+    .index("by_userId", ["userId"])
+    .index("by_room_user", ["roomId", "userId"]),
 
   // Execution（実行ログ）: プロジェクトの実行状況
   executions: defineTable({
@@ -264,6 +304,56 @@ export default defineSchema({
     .index("by_roomId", ["roomId"])
     .index("by_threadId", ["threadId"])
     .index("by_proposedBy", ["proposedBy"]),
+
+  // ユーザー送金口座（Stripe Connect / 銀行口座）
+  payoutAccounts: defineTable({
+    userId: v.id("users"),
+    method: v.union(v.literal("stripe_connect"), v.literal("bank_account")),
+    status: v.union(v.literal("pending"), v.literal("active"), v.literal("disabled")),
+    externalRef: v.optional(v.string()), // Stripe account IDなど
+    bankName: v.optional(v.string()),
+    accountLast4: v.optional(v.string()),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_user_default", ["userId", "isDefault"])
+    .index("by_status", ["status"]),
+
+  // 送金台帳（試用フェーズでは確定管理まで）
+  payoutLedger: defineTable({
+    roomId: v.id("rooms"),
+    recipientUserId: v.id("users"),
+    amount: v.number(),
+    currency: v.string(),
+    status: v.union(
+      v.literal("requires_method"),
+      v.literal("pending"),
+      v.literal("ready"),
+      v.literal("settled"),
+      v.literal("failed"),
+      v.literal("canceled")
+    ),
+    method: v.union(
+      v.literal("stripe_connect"),
+      v.literal("bank_account"),
+      v.literal("unspecified")
+    ),
+    requestedBy: v.id("users"),
+    settledBy: v.optional(v.id("users")),
+    payoutAccountId: v.optional(v.id("payoutAccounts")),
+    distributionProposalId: v.optional(v.id("distributionProposals")),
+    requestedAt: v.number(),
+    settledAt: v.optional(v.number()),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_roomId", ["roomId"])
+    .index("by_recipientUserId", ["recipientUserId"])
+    .index("by_status", ["status"])
+    .index("by_distributionProposalId", ["distributionProposalId"]),
 
   // v2公開プロジェクト（段階移行用）
   publicProjectsV2: defineTable({

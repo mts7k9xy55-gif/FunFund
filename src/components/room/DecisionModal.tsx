@@ -1,6 +1,3 @@
-// src/components/room/DecisionModal.tsx
-// 判断モーダル: stance + reason必須
-
 "use client";
 
 import { useState } from "react";
@@ -18,6 +15,8 @@ interface DecisionModalProps {
   onSuccess?: (message: string) => void;
 }
 
+type DecisionVisibility = "private" | "shared_to_target" | "public";
+
 export default function DecisionModal({
   isOpen,
   onClose,
@@ -27,8 +26,10 @@ export default function DecisionModal({
   onError,
   onSuccess,
 }: DecisionModalProps) {
-  const [stance, setStance] = useState<"yes" | "no" | "hold">("yes");
+  const [score, setScore] = useState(5);
   const [reasonBody, setReasonBody] = useState("");
+  const [visibility, setVisibility] = useState<DecisionVisibility>("private");
+  const [publishConsentByEvaluator, setPublishConsentByEvaluator] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const decide = useMutation(api.decisions.decide);
 
@@ -36,7 +37,8 @@ export default function DecisionModal({
 
   const handleSubmit = async () => {
     if (!reasonBody.trim()) {
-      const msg = language === "ja" ? "理由を入力してください" : "Please enter a reason";
+      const msg =
+        language === "ja" ? "判断理由を入力してください" : "Please enter a decision reason";
       onError?.(msg);
       return;
     }
@@ -46,28 +48,28 @@ export default function DecisionModal({
       await decide({
         roomId,
         threadId,
-        stance,
+        score,
         reasonBody: reasonBody.trim(),
+        visibility,
+        publishConsentByEvaluator,
       });
 
-      const successMsg = language === "ja" ? "判断を下しました" : "Decision submitted";
-      onSuccess?.(successMsg);
+      onSuccess?.(language === "ja" ? "判断を保存しました" : "Decision saved");
+      setScore(5);
       setReasonBody("");
-      setStance("yes");
+      setVisibility("private");
+      setPublishConsentByEvaluator(false);
       onClose();
     } catch (error: any) {
-      // エラーメッセージを明確に表示
-      let errorMsg = error.message || (language === "ja" ? "判断に失敗しました" : "Failed to submit decision");
-      
-      // エラーメッセージを日本語化
+      let errorMsg =
+        error.message || (language === "ja" ? "判断の保存に失敗しました" : "Failed to save decision");
       if (error.message?.includes("not active")) {
-        errorMsg = language === "ja" ? "このRoomは有効化が必要です" : "This room needs to be activated";
+        errorMsg = language === "ja" ? "このRoomは有効化が必要です" : "This room needs activation";
       } else if (error.message?.includes("Viewers cannot write")) {
         errorMsg = language === "ja" ? "viewerは書き込みできません" : "Viewers cannot write";
-      } else if (error.message?.includes("requires a reason")) {
-        errorMsg = language === "ja" ? "理由を入力してください" : "Please enter a reason";
+      } else if (error.message?.includes("reason")) {
+        errorMsg = language === "ja" ? "判断理由を入力してください" : "Please enter a reason";
       }
-
       onError?.(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -75,102 +77,112 @@ export default function DecisionModal({
   };
 
   const t = {
-    title: language === "ja" ? "判断を下す" : "Make Decision",
-    stance: language === "ja" ? "立場" : "Stance",
-    yes: language === "ja" ? "賛成" : "Yes",
-    no: language === "ja" ? "反対" : "No",
-    hold: language === "ja" ? "保留" : "Hold",
-    reason: language === "ja" ? "理由（必須）" : "Reason (required)",
-    reasonPlaceholder: language === "ja" ? "判断の理由を入力してください..." : "Enter your reason...",
-    submit: language === "ja" ? "判断を下す" : "Submit Decision",
+    title: language === "ja" ? "判断を記録" : "Record Decision",
+    score: language === "ja" ? "評価スコア (1-10)" : "Decision Score (1-10)",
+    reason: language === "ja" ? "判断理由（必須）" : "Reason (required)",
+    reasonPlaceholder:
+      language === "ja"
+        ? "なぜこの点数にしたかを簡潔に記入してください"
+        : "Describe why you chose this score",
+    visibility: language === "ja" ? "公開範囲" : "Visibility",
+    private: language === "ja" ? "秘匿（自分のみ）" : "Private (only me)",
+    shared: language === "ja" ? "対象者に共有" : "Share with target",
+    public: language === "ja" ? "公開（両者同意時）" : "Public (requires both consents)",
+    evaluatorConsent:
+      language === "ja"
+        ? "公開に同意する（対象者が同意すると公開）"
+        : "I consent to publishing if target also consents",
+    submit: language === "ja" ? "保存" : "Save",
     cancel: language === "ja" ? "キャンセル" : "Cancel",
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card rounded-xl shadow-xl w-full max-w-lg mx-4 border border-border">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl mx-4">
+        <div className="flex items-center justify-between border-b border-border p-5">
           <h2 className="text-lg font-semibold text-fg">{t.title}</h2>
           <button
             onClick={onClose}
-            className="text-muted-fg hover:text-fg transition-colors"
+            className="text-muted-fg transition-colors hover:text-fg"
+            aria-label={t.cancel}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-5 space-y-4">
-          {/* Stance選択 */}
+        <div className="space-y-5 p-5">
           <div>
-            <label className="block text-sm font-medium text-fg mb-2">{t.stance}</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setStance("yes")}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  stance === "yes"
-                    ? "bg-green-500 text-white"
-                    : "bg-muted text-fg hover:bg-muted/80"
-                }`}
-              >
-                {t.yes}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStance("no")}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  stance === "no"
-                    ? "bg-red-500 text-white"
-                    : "bg-muted text-fg hover:bg-muted/80"
-                }`}
-              >
-                {t.no}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStance("hold")}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  stance === "hold"
-                    ? "bg-amber-500 text-white"
-                    : "bg-muted text-fg hover:bg-muted/80"
-                }`}
-              >
-                {t.hold}
-              </button>
+            <label className="mb-2 block text-sm font-medium text-fg">{t.score}</label>
+            <div className="rounded-lg border border-border bg-muted p-3">
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={score}
+                onChange={(event) => setScore(Number(event.target.value))}
+                className="w-full"
+              />
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-fg">
+                <span>1</span>
+                <span className="rounded bg-primary/10 px-2 py-1 text-sm font-semibold text-primary">
+                  {score}
+                </span>
+                <span>10</span>
+              </div>
             </div>
           </div>
 
-          {/* 理由入力（必須） */}
           <div>
-            <label className="block text-sm font-medium text-fg mb-2">
+            <label className="mb-2 block text-sm font-medium text-fg">
               {t.reason} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={reasonBody}
-              onChange={(e) => setReasonBody(e.target.value)}
+              onChange={(event) => setReasonBody(event.target.value)}
               placeholder={t.reasonPlaceholder}
-              className="w-full p-3 bg-muted border border-border rounded-lg text-sm text-fg placeholder-muted-fg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none transition-colors"
               rows={4}
+              className="w-full resize-none rounded-lg border border-border bg-muted p-3 text-sm text-fg placeholder-muted-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-fg">{t.visibility}</label>
+            <select
+              value={visibility}
+              onChange={(event) => setVisibility(event.target.value as DecisionVisibility)}
+              className="w-full rounded-lg border border-border bg-muted p-3 text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="private">{t.private}</option>
+              <option value="shared_to_target">{t.shared}</option>
+              <option value="public">{t.public}</option>
+            </select>
+          </div>
+
+          <label className="flex items-start gap-2 rounded-lg border border-border bg-muted p-3 text-sm text-fg">
+            <input
+              type="checkbox"
+              checked={publishConsentByEvaluator}
+              onChange={(event) => setPublishConsentByEvaluator(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>{t.evaluatorConsent}</span>
+          </label>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 p-5 border-t border-border">
+        <div className="flex justify-end gap-2 border-t border-border p-5">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-card border border-border text-sm text-fg hover:bg-muted transition-colors"
+            className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg transition-colors hover:bg-muted"
           >
             {t.cancel}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!reasonBody.trim() || isSubmitting}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-fg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-fg transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "..." : t.submit}
           </button>

@@ -3,6 +3,11 @@
 
 import { httpRouter } from "convex/server";
 import { updateRoomStatusHttp, setRoomStripeInfoHttp, registerStripeEventHttp } from "./stripe";
+import {
+  createPayoutRequestHttp,
+  registerPayoutAccountHttp,
+  settlePayoutLedgerHttp,
+} from "./payouts";
 
 const http = httpRouter();
 
@@ -23,6 +28,24 @@ http.route({
   path: "/stripe/registerEvent",
   method: "POST",
   handler: registerStripeEventHttp,
+});
+
+http.route({
+  path: "/payouts/registerAccount",
+  method: "POST",
+  handler: registerPayoutAccountHttp,
+});
+
+http.route({
+  path: "/payouts/request",
+  method: "POST",
+  handler: createPayoutRequestHttp,
+});
+
+http.route({
+  path: "/payouts/settle",
+  method: "POST",
+  handler: settlePayoutLedgerHttp,
 });
 
 export default http;

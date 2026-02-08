@@ -52,6 +52,55 @@ function calculateWeightedScore(
   return Math.round(weightedSum * 100) / 100; // 小数点第2位まで
 }
 
+async function refreshWeightProfileForEvaluator(ctx: any, evaluatorId: Id<"users">) {
+  const evaluations = await ctx.db
+    .query("evaluations")
+    .withIndex("by_evaluatorId", (q: any) => q.eq("evaluatorId", evaluatorId))
+    .collect();
+
+  const averageWeightedScore =
+    evaluations.length > 0
+      ? evaluations.reduce((sum: number, e: any) => sum + e.weightedScore, 0) /
+        evaluations.length
+      : 2.5;
+
+  const globalCredibilityScore = Math.max(
+    10,
+    Math.min(100, (averageWeightedScore / 5) * 100)
+  );
+  const globalWeight = Math.max(
+    0.5,
+    Math.min(2.0, 0.5 + (globalCredibilityScore / 100) * 1.5)
+  );
+
+  const existing = await ctx.db
+    .query("userWeightProfiles")
+    .withIndex("by_userId", (q: any) => q.eq("userId", evaluatorId))
+    .first();
+
+  const now = Date.now();
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      globalWeight: Math.round(globalWeight * 100) / 100,
+      globalCredibilityScore: Math.round(globalCredibilityScore * 100) / 100,
+      updatedAt: now,
+    });
+  } else {
+    await ctx.db.insert("userWeightProfiles", {
+      userId: evaluatorId,
+      globalWeight: Math.round(globalWeight * 100) / 100,
+      globalCredibilityScore: Math.round(globalCredibilityScore * 100) / 100,
+      publicProfileEnabled: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  await ctx.db.patch(evaluatorId, {
+    reputation: Math.round(globalWeight * 100) / 100,
+  });
+}
+
 /**
  * 評価を作成または更新
  */
@@ -151,10 +200,12 @@ export const upsertEvaluation = mutation({
         updatedAt: now,
       });
 
+      await refreshWeightProfileForEvaluator(ctx, user._id);
+
       return existing._id;
     } else {
       // 新規作成
-      return await ctx.db.insert("evaluations", {
+      const createdId = await ctx.db.insert("evaluations", {
         threadId: args.threadId,
         roomId: thread.roomId,
         evaluatorId: user._id,
@@ -174,6 +225,9 @@ export const upsertEvaluation = mutation({
         createdAt: now,
         updatedAt: now,
       });
+
+      await refreshWeightProfileForEvaluator(ctx, user._id);
+      return createdId;
     }
   },
 });

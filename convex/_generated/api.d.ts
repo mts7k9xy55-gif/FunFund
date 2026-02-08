@@ -20,6 +20,7 @@ import type * as invites from "../invites.js";
 import type * as items from "../items.js";
 import type * as layerInputs from "../layerInputs.js";
 import type * as messages from "../messages.js";
+import type * as payouts from "../payouts.js";
 import type * as profiles from "../profiles.js";
 import type * as publicPreviews from "../publicPreviews.js";
 import type * as rooms from "../rooms.js";
@@ -29,6 +30,7 @@ import type * as users from "../users.js";
 import type * as v2Migration from "../v2Migration.js";
 import type * as v2Public from "../v2Public.js";
 import type * as v2Room from "../v2Room.js";
+import type * as weights from "../weights.js";
 
 import type {
   ApiFromModules,
@@ -49,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   items: typeof items;
   layerInputs: typeof layerInputs;
   messages: typeof messages;
+  payouts: typeof payouts;
   profiles: typeof profiles;
   publicPreviews: typeof publicPreviews;
   rooms: typeof rooms;
@@ -58,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   v2Migration: typeof v2Migration;
   v2Public: typeof v2Public;
   v2Room: typeof v2Room;
+  weights: typeof weights;
 }>;
 
 /**

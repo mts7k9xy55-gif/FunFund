@@ -3,7 +3,7 @@
 
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { requireUser, requireOwnerPermission } from "./_guards";
+import { requireUser, requireOwnerPermission, requireRoomMember } from "./_guards";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -170,6 +170,35 @@ export const getRoom = query({
       ...room,
       myRole: membership.role,
     };
+  },
+});
+
+/**
+ * Roomメンバー一覧を取得
+ */
+export const listRoomMembers = query({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    await requireRoomMember(ctx, args.roomId, user._id);
+
+    const memberships = await ctx.db
+      .query("roomMembers")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
+
+    return await Promise.all(
+      memberships.map(async (membership) => {
+        const memberUser = await ctx.db.get(membership.userId);
+        return {
+          ...membership,
+          userName: memberUser?.name ?? "Unknown",
+          clerkUserId: memberUser?.userId ?? null,
+        };
+      })
+    );
   },
 });
 

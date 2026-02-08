@@ -317,6 +317,11 @@ export default function Dashboard({
                 ? "評価スコアに基づく自動計算された貢献度:"
                 : "Auto-calculated contributions based on evaluation scores:"}
             </div>
+            <p className="text-xs text-muted-foreground">
+              {language === "ja"
+                ? "※ ユーザー基準重み + プロジェクト別重みを反映"
+                : "* Includes global + project-specific user weights"}
+            </p>
 
             <div className="space-y-2">
               {autoContributions.map((contribution, index) => (

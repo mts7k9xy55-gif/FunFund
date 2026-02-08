@@ -34,8 +34,11 @@ A crowdfunding platform with weighted evaluation system, built with Next.js and 
    NEXT_PUBLIC_V2_ROOM_ENABLED=true
    NEXT_PUBLIC_V2_BILLING_ENABLED=true
    NEXT_PUBLIC_V2_LEGACY_ENABLED=true
+   NEXT_PUBLIC_WEIGHTS_V2_ENABLED=true
+   NEXT_PUBLIC_DECISION_V2_ENABLED=true
+   NEXT_PUBLIC_PAYOUTS_V1_ENABLED=true
    ```
-   - Defaults: `room=true`, `billing=true`, `legacy=true`.
+   - Defaults: `room=true`, `billing=true`, `legacy=true`, `weights=true`, `decision=true`, `payouts=true`.
 
 ### Convex Setup
 
@@ -98,11 +101,25 @@ The weighted average is calculated automatically in Convex and proposals can be 
 1. Connect your GitHub repository to Vercel
 2. Add the following environment variables:
    - `NEXT_PUBLIC_CONVEX_URL`: Your Convex deployment URL
+   - `STRIPE_SECRET_KEY`: Stripe secret key (checkout + connect onboarding)
+   - `STRIPE_PRICE_ID`: Stripe price for room activation
+   - `STRIPE_WEBHOOK_SECRET`: Stripe webhook signing secret
+   - `PAYOUT_ADMIN_KEY`: Admin-only key used for `/api/payouts/admin/settle`
 
 ### Clerk Keys (Preview vs Production)
 
 - Preview or development deployments may use Clerk `test` keys. In that case, the browser warning about development keys is expected.
 - For production deployments, set Clerk `live` keys (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`) to remove the warning and production limits.
+
+### Trial Payout Mode
+
+- Trial phase supports both payout account registration methods:
+  - Stripe Connect onboarding (`/api/payouts/stripe/onboard`)
+  - Bank account registration (`/api/payouts/bank/register`)
+- In trial mode, payout execution is ledger-based:
+  - create requests at `/api/payouts/request`
+  - settle manually at `/api/payouts/admin/settle`
+- This keeps accidental transfer risk low while UX and business rules are being tuned.
 
 ### Preview Deployments and Manifest Icons
 
