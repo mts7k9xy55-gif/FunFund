@@ -1,19 +1,25 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import {
+  Header,
+  HeroSection,
+  FeaturesSection,
+  StatsSection,
+  DemoSection,
+  HowItWorksSection,
+  ProjectsSection,
+  Footer,
+} from "@/components/landing";
 
 export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // ルートページはオープン一覧にリダイレクト
-    router.replace("/public");
-  }, [router]);
-
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center">
-      <div className="text-lg text-muted-fg">読み込み中...</div>
+    <div className="min-h-screen bg-white">
+      <Header />
+      <HeroSection />
+      <FeaturesSection />
+      <StatsSection />
+      <DemoSection />
+      <HowItWorksSection />
+      <ProjectsSection />
+      <Footer />
     </div>
   );
 }

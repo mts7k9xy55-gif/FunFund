@@ -11,8 +11,11 @@
 import type * as _guards from "../_guards.js";
 import type * as connections from "../connections.js";
 import type * as decisions from "../decisions.js";
+import type * as distributions from "../distributions.js";
+import type * as evaluations from "../evaluations.js";
 import type * as executions from "../executions.js";
 import type * as groups from "../groups.js";
+import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as items from "../items.js";
 import type * as layerInputs from "../layerInputs.js";
@@ -23,6 +26,9 @@ import type * as rooms from "../rooms.js";
 import type * as stripe from "../stripe.js";
 import type * as threads from "../threads.js";
 import type * as users from "../users.js";
+import type * as v2Migration from "../v2Migration.js";
+import type * as v2Public from "../v2Public.js";
+import type * as v2Room from "../v2Room.js";
 
 import type {
   ApiFromModules,
@@ -34,8 +40,11 @@ declare const fullApi: ApiFromModules<{
   _guards: typeof _guards;
   connections: typeof connections;
   decisions: typeof decisions;
+  distributions: typeof distributions;
+  evaluations: typeof evaluations;
   executions: typeof executions;
   groups: typeof groups;
+  http: typeof http;
   invites: typeof invites;
   items: typeof items;
   layerInputs: typeof layerInputs;
@@ -46,6 +55,9 @@ declare const fullApi: ApiFromModules<{
   stripe: typeof stripe;
   threads: typeof threads;
   users: typeof users;
+  v2Migration: typeof v2Migration;
+  v2Public: typeof v2Public;
+  v2Room: typeof v2Room;
 }>;
 
 /**

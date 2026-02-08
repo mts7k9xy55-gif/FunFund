@@ -4,7 +4,7 @@
 "use client";
 
 import { useState } from "react";
-import { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 interface PaywallBannerProps {
   roomStatus: "draft" | "active" | "past_due" | "canceled";
@@ -62,10 +62,30 @@ export default function PaywallBanner({ roomStatus, roomId, language }: PaywallB
                 throw new Error(data.error || "Failed to create checkout session");
               }
 
+              if (data.available === false) {
+                const missingDetail =
+                  Array.isArray(data.missing) && data.missing.length > 0
+                    ? ` (${data.missing.join(", ")})`
+                    : "";
+                throw new Error(
+                  data.error ||
+                    (language === "ja"
+                      ? `現在この環境では決済設定が未完了です${missingDetail}`
+                      : `Stripe checkout is not configured in this environment${missingDetail}`)
+                );
+              }
+
               // Checkout URLにリダイレクト
               if (data.url) {
                 window.location.href = data.url;
+                return;
               }
+
+              throw new Error(
+                language === "ja"
+                  ? "決済URLの取得に失敗しました"
+                  : "Failed to get checkout URL"
+              );
             } catch (error: any) {
               alert(error.message || (language === "ja" ? "決済セッションの作成に失敗しました" : "Failed to create checkout session"));
             } finally {

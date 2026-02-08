@@ -3,7 +3,7 @@
 // 画像の通りに実装
 
 import { useState } from "react";
-import { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 type VoteType = "approve" | "neutral" | "oppose";
 
@@ -24,7 +24,6 @@ export default function CommitModal({
 }) {
   const [voteType, setVoteType] = useState<VoteType>("approve");
   const [commitStrength, setCommitStrength] = useState(5);
-  const [showDetails, setShowDetails] = useState(false);
   const [reason, setReason] = useState("");
 
   if (!isOpen) return null;
@@ -47,9 +46,14 @@ export default function CommitModal({
   const handleReset = () => {
     setVoteType("approve");
     setCommitStrength(5);
-    setShowDetails(false);
     setReason("");
   };
+
+  const strengthOptions = [
+    { value: 3, labelJa: "軽め", labelEn: "Light" },
+    { value: 5, labelJa: "標準", labelEn: "Standard" },
+    { value: 8, labelJa: "強め", labelEn: "Strong" },
+  ];
 
   const handleClose = () => {
     handleReset();
@@ -120,36 +124,29 @@ export default function CommitModal({
             </button>
           </div>
 
-          {/* コミット強度スライダー */}
+          {/* コミット強度：詳細設定は廃止し、3段階のクイック選択に統一 */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-fg">
                 {language === "ja" ? "コミット強度" : "Commit Strength"}
               </label>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-fg">{commitStrength}</span>
-                <label className="flex items-center gap-2 text-xs text-muted-fg">
-                  <input
-                    type="checkbox"
-                    checked={showDetails}
-                    onChange={(e) => setShowDetails(e.target.checked)}
-                    className="w-4 h-4 rounded border-border"
-                  />
-                  {language === "ja" ? "詳細設定" : "Details"}
-                </label>
-              </div>
+              <span className="text-2xl font-bold text-fg">{commitStrength}</span>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="10"
-              value={commitStrength}
-              onChange={(e) => setCommitStrength(Number(e.target.value))}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-            />
-            <div className="flex justify-between text-xs text-muted-fg mt-1">
-              <span>1</span>
-              <span>10</span>
+            <div className="grid grid-cols-3 gap-2">
+              {strengthOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setCommitStrength(option.value)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                    commitStrength === option.value
+                      ? "border-primary bg-primary text-primary-fg"
+                      : "border-border bg-card text-fg hover:bg-muted"
+                  }`}
+                >
+                  {language === "ja" ? option.labelJa : option.labelEn}
+                </button>
+              ))}
             </div>
           </div>
 

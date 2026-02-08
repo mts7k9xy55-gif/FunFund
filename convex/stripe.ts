@@ -1,47 +1,115 @@
 // convex/stripe.ts
-// Stripe Webhook用のactions（外部APIから呼び出し可能）
+// Stripe Webhook用のHTTP Actions（Next.js API routeからfetchで呼び出される）
 
-import { action } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { httpAction } from "./_generated/server";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 /**
- * Webhook用action: Room statusを更新
- * Next.js API routeから呼び出される
+ * HTTP Action: Room statusを更新
+ * POST /stripe/updateRoomStatus
  */
-export const updateRoomStatus = action({
-  args: {
-    roomId: v.id("rooms"),
-    status: v.union(
-      v.literal("active"),
-      v.literal("past_due"),
-      v.literal("canceled")
-    ),
-  },
-  handler: async (ctx, args) => {
-    // internal mutationを呼び出す
+export const updateRoomStatusHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const body = await request.json();
+  const { roomId, stripeCustomerId, status } = body as {
+    roomId?: string;
+    stripeCustomerId?: string;
+    status?: "active" | "past_due" | "canceled";
+  };
+
+  if (!status) {
+    return new Response("Missing status", { status: 400 });
+  }
+
+  if (roomId) {
     await ctx.runMutation(internal.rooms.updateRoomStatusFromWebhook, {
-      roomId: args.roomId,
-      status: args.status,
+      roomId: roomId as Id<"rooms">,
+      status,
     });
-  },
+  } else if (stripeCustomerId) {
+    await ctx.runMutation(internal.rooms.updateRoomStatusByStripeCustomer, {
+      stripeCustomerId,
+      status,
+    });
+  } else {
+    return new Response("Missing roomId or stripeCustomerId", { status: 400 });
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 });
 
 /**
- * Webhook用action: RoomにStripe情報を保存
+ * HTTP Action: RoomにStripe情報を保存
+ * POST /stripe/setRoomStripeInfo
  */
-export const setRoomStripeInfoAction = action({
-  args: {
-    roomId: v.id("rooms"),
-    stripeCustomerId: v.string(),
-    stripeSubscriptionId: v.string(),
-  },
-  handler: async (ctx, args) => {
+export const setRoomStripeInfoHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const body = await request.json();
+  const { roomId, stripeCustomerId, stripeSubscriptionId } = body as {
+    roomId?: string;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+  };
+
+  if (!roomId || !stripeSubscriptionId) {
+    return new Response("Missing roomId or stripeSubscriptionId", { status: 400 });
+  }
+
+  if (stripeCustomerId) {
     await ctx.runMutation(internal.rooms.setRoomStripeInfo, {
-      roomId: args.roomId,
-      stripeCustomerId: args.stripeCustomerId,
-      stripeSubscriptionId: args.stripeSubscriptionId,
+      roomId: roomId as Id<"rooms">,
+      stripeCustomerId,
+      stripeSubscriptionId,
     });
-  },
+  } else {
+    await ctx.runMutation(internal.rooms.updateRoomStatusFromWebhook, {
+      roomId: roomId as Id<"rooms">,
+      status: "active",
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
+/**
+ * HTTP Action: Stripe webhook eventの重複登録を防止
+ * POST /stripe/registerEvent
+ */
+export const registerStripeEventHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const body = await request.json();
+  const { eventId, eventType } = body as {
+    eventId?: string;
+    eventType?: string;
+  };
+
+  if (!eventId || !eventType) {
+    return new Response("Missing eventId or eventType", { status: 400 });
+  }
+
+  const result = await ctx.runMutation(api.v2Migration.registerStripeWebhookEvent, {
+    eventId,
+    eventType,
+  });
+
+  return new Response(JSON.stringify(result), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 });

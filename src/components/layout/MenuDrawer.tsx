@@ -4,6 +4,7 @@
 
 "use client";
 
+import Link from "next/link";
 import {
   SignInButton,
   SignUpButton,
@@ -237,6 +238,28 @@ export default function MenuDrawer({
             >
               {language === "ja" ? "広場" : "Plaza"}
             </button>
+          </div>
+
+          <div>
+            <div className="text-xs font-medium text-muted-fg uppercase tracking-wider mb-2">
+              {language === "ja" ? "リーガル" : "Legal"}
+            </div>
+            <div className="space-y-1">
+              <Link
+                href="/privacy"
+                onClick={onClose}
+                className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-fg hover:bg-muted transition-colors"
+              >
+                {language === "ja" ? "プライバシーポリシー" : "Privacy Policy"}
+              </Link>
+              <Link
+                href="/terms"
+                onClick={onClose}
+                className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-fg hover:bg-muted transition-colors"
+              >
+                {language === "ja" ? "利用規約" : "Terms"}
+              </Link>
+            </div>
           </div>
 
           {/* 認証 */}

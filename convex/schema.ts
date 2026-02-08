@@ -94,11 +94,16 @@ export default defineSchema({
     ),
     stripeCustomerId: v.optional(v.string()), // Stripe customer ID
     stripeSubscriptionId: v.optional(v.string()), // Stripe subscription ID
+    isPrivate: v.optional(v.boolean()), // プライベートグループかどうか
+    inviteCode: v.optional(v.string()), // 招待コード（プライベート時）
+    evaluationMode: v.optional(v.union(v.literal("open"), v.literal("closed"))), // 評価モード
+    virtualFundBalance: v.optional(v.number()), // 仮想Fund残高
     createdAt: v.number(),
   })
     .index("by_owner", ["ownerId"])
     .index("by_status", ["status"])
-    .index("by_stripeCustomer", ["stripeCustomerId"]),
+    .index("by_stripeCustomer", ["stripeCustomerId"])
+    .index("by_inviteCode", ["inviteCode"]),
 
   // Roomメンバー: roleで書き込み権限を制御
   roomMembers: defineTable({
@@ -208,4 +213,103 @@ export default defineSchema({
     .index("by_room", ["roomId"])
     .index("by_thread", ["threadId"])
     .index("by_createdBy", ["createdBy"]),
+
+  // 評価（5つの基準でスコアリング）
+  evaluations: defineTable({
+    threadId: v.id("threads"), // 評価対象のThread
+    roomId: v.id("rooms"), // Room参照（アクセス制御用）
+    evaluatorId: v.id("users"), // 評価者
+    mode: v.union(v.literal("open"), v.literal("closed")), // 評価モード
+    // スコア（1-5 scale）
+    score1: v.number(), // open: 革新性 / closed: 金銭
+    score2: v.number(), // open: 実現可能性 / closed: 家事
+    score3: v.number(), // open: 社会的インパクト / closed: 決定力
+    score4: v.number(), // open: チーム力 / closed: 協力
+    score5: v.number(), // open: プレゼン / closed: ストレス軽減
+    // 重み（合計100%）
+    weight1: v.number(),
+    weight2: v.number(),
+    weight3: v.number(),
+    weight4: v.number(),
+    weight5: v.number(),
+    // 計算された加重平均スコア
+    weightedScore: v.number(),
+    comment: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_threadId", ["threadId"])
+    .index("by_roomId", ["roomId"])
+    .index("by_evaluatorId", ["evaluatorId"])
+    .index("by_threadId_evaluatorId", ["threadId", "evaluatorId"]),
+
+  // 分配提案（貢献度ベース）
+  distributionProposals: defineTable({
+    roomId: v.id("rooms"),
+    threadId: v.id("threads"), // 関連するThread
+    proposedBy: v.id("users"), // 提案者
+    contributions: v.array(v.object({
+      userId: v.id("users"),
+      percentage: v.number(), // 貢献度%（合計100%）
+    })),
+    totalAmount: v.number(), // 分配総額
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("rejected")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_roomId", ["roomId"])
+    .index("by_threadId", ["threadId"])
+    .index("by_proposedBy", ["proposedBy"]),
+
+  // v2公開プロジェクト（段階移行用）
+  publicProjectsV2: defineTable({
+    sourceItemId: v.optional(v.id("items")),
+    title: v.string(),
+    description: v.string(),
+    thumbnailUrl: v.optional(v.string()),
+    decisions: v.array(v.string()),
+    suitableFor: v.optional(v.string()),
+    notSuitableFor: v.optional(v.string()),
+    weightedScore: v.number(),
+    evaluationCount: v.number(),
+    currentAmount: v.number(),
+    goalAmount: v.number(),
+    daysRemaining: v.number(),
+    visibility: v.union(v.literal("public"), v.literal("private")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_visibility", ["visibility"])
+    .index("by_sourceItemId", ["sourceItemId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // 移行バックフィルの進捗管理
+  migrationBackfillState: defineTable({
+    tableName: v.string(),
+    lastCursor: v.optional(v.string()),
+    processedCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_tableName", ["tableName"]),
+
+  // dual-write失敗の補償キュー
+  dualWriteFailures: defineTable({
+    domain: v.string(),
+    operation: v.string(),
+    payload: v.string(),
+    error: v.string(),
+    retryCount: v.number(),
+    lastTriedAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_domain", ["domain"]),
+
+  // Stripe webhookの重複処理防止
+  stripeWebhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    processedAt: v.number(),
+  }).index("by_eventId", ["eventId"]),
 });

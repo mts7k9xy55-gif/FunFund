@@ -10,12 +10,16 @@ import { v } from "convex/values";
 export const listPublicPreviews = query({
   args: {},
   handler: async (ctx) => {
-    // visibility: "public" のitemsを取得
-    const publicItems = await ctx.db
+    // ルートアイテム（parentIdなし）を index から取得
+    const rootItems = await ctx.db
       .query("items")
-      .withIndex("by_visibility", (q) => q.eq("visibility", "public"))
-      .filter((q) => !q.field("parentId")) // ルートアイテムのみ
+      .withIndex("by_parent", (q) => q.eq("parentId", undefined))
       .collect();
+
+    // visibility未設定は public とみなす
+    const publicItems = rootItems.filter(
+      (item) => (item.visibility ?? "public") === "public"
+    );
 
     // publicPreviewsテーブルから追加情報を取得
     const previews = await Promise.all(

@@ -1,48 +1,63 @@
 @import "tailwindcss";
 
-/* ===== Emergent Design Tokens (Light Theme) ===== */
+/* ===== FunFund Design System (Unified with LP) ===== */
 :root {
+  --font-geist-sans: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-geist-mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
   /* Background & Foreground */
-  --bg: 0 0% 98%;
-  --fg: 222.2 47.4% 11.2%;
+  --bg: 249 250 251; /* #F9FAFB */
+  --fg: 31 41 55; /* #1F2937 */
   
   /* Card */
-  --card: 0 0% 100%;
-  --card-fg: 222.2 47.4% 11.2%;
+  --card: 255 255 255; /* #FFFFFF */
+  --card-fg: 31 41 55; /* #1F2937 */
   
   /* Muted */
-  --muted: 210 40% 96%;
-  --muted-fg: 215.4 16.3% 46.9%;
+  --muted: 249 250 251; /* #F9FAFB */
+  --muted-fg: 107 114 128; /* #6B7280 */
   
   /* Border */
-  --border: 214.3 31.8% 91.4%;
+  --border: 229 231 235; /* #E5E7EB */
   
-  /* Primary (Purple) */
-  --primary: 244 83% 63%;
-  --primary-fg: 0 0% 100%;
+  /* Primary (Indigo) */
+  --primary: 99 102 241; /* #6366F1 */
+  --primary-fg: 255 255 255;
+  
+  /* Primary Gradient */
+  --primary-gradient-start: 99 102 241; /* #6366F1 */
+  --primary-gradient-end: 59 130 246; /* #3B82F6 */
+  
+  /* Success & Warning */
+  --success: 16 185 129; /* #10B981 */
+  --warning: 245 158 11; /* #F59E0B */
   
   /* Accent colors for badges */
-  --accent-proposal: 221 83% 53%;
-  --accent-comment: 210 40% 50%;
-  --accent-evaluation: 262 83% 58%;
+  --accent-proposal: 99 102 241;
+  --accent-comment: 107 114 128;
+  --accent-evaluation: 99 102 241;
   
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
 @theme inline {
   /* Map CSS vars to Tailwind colors */
-  --color-bg: hsl(var(--bg));
-  --color-fg: hsl(var(--fg));
-  --color-card: hsl(var(--card));
-  --color-card-fg: hsl(var(--card-fg));
-  --color-muted: hsl(var(--muted));
-  --color-muted-fg: hsl(var(--muted-fg));
-  --color-border: hsl(var(--border));
-  --color-primary: hsl(var(--primary));
-  --color-primary-fg: hsl(var(--primary-fg));
+  --color-bg: rgb(var(--bg));
+  --color-fg: rgb(var(--fg));
+  --color-card: rgb(var(--card));
+  --color-card-fg: rgb(var(--card-fg));
+  --color-muted: rgb(var(--muted));
+  --color-muted-fg: rgb(var(--muted-fg));
+  --color-border: rgb(var(--border));
+  --color-primary: rgb(var(--primary));
+  --color-primary-fg: rgb(var(--primary-fg));
+  --color-success: rgb(var(--success));
+  --color-warning: rgb(var(--warning));
   
   /* Font */
   --font-sans: var(--font-geist-sans);
@@ -50,37 +65,74 @@
 }
 
 body {
-  background: hsl(var(--bg));
-  color: hsl(var(--fg));
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
 /* ===== Utility Classes ===== */
 .card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
   border-radius: 0.75rem;
   box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
 }
 
 .card:hover {
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .btn-primary {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-fg));
-  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, rgb(var(--primary-gradient-start)), rgb(var(--primary-gradient-end)));
+  color: rgb(var(--primary-fg));
+  padding: 0.625rem 1.25rem;
   border-radius: 0.5rem;
   font-weight: 500;
-  transition: opacity 0.15s;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
   opacity: 0.9;
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, rgb(var(--primary-gradient-start)), rgb(var(--primary-gradient-end)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Focus states for accessibility */
+*:focus-visible {
+  outline: 2px solid rgb(var(--primary));
+  outline-offset: 2px;
+  border-radius: 0.25rem;
 }
