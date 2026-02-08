@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await createRoomCheckoutSession(roomId);
+  const result = await createRoomCheckoutSession(roomId, {
+    siteUrl: request.nextUrl.origin,
+  });
   return NextResponse.json(result.body, { status: result.status });
 }

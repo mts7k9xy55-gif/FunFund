@@ -8,7 +8,8 @@ export interface RoomStripeInfoPayload {
 }
 
 export interface RoomStatusPayload {
-  stripeSubscriptionId: string;
+  roomId?: string;
+  stripeCustomerId?: string | Stripe.Customer | Stripe.DeletedCustomer | null;
   status: "active" | "past_due" | "canceled";
 }
 
@@ -60,19 +61,25 @@ async function postJson<T>(path: string, body: Record<string, unknown>): Promise
 }
 
 export async function setRoomStripeInfo(payload: RoomStripeInfoPayload): Promise<void> {
-  await post("/stripe/setRoomStripeInfo", {
+  const body: Record<string, unknown> = {
     roomId: payload.roomId,
-    stripeCustomerId: typeof payload.stripeCustomerId === "string" ? payload.stripeCustomerId : null,
     stripeSubscriptionId: payload.stripeSubscriptionId,
-    status: payload.status,
-  });
+  };
+  if (typeof payload.stripeCustomerId === "string" && payload.stripeCustomerId.length > 0) {
+    body.stripeCustomerId = payload.stripeCustomerId;
+  }
+  await post("/stripe/setRoomStripeInfo", body);
 }
 
 export async function updateRoomStatus(payload: RoomStatusPayload): Promise<void> {
-  await post("/stripe/updateRoomStatus", {
-    stripeSubscriptionId: payload.stripeSubscriptionId,
-    status: payload.status,
-  });
+  const body: Record<string, unknown> = { status: payload.status };
+  if (payload.roomId) {
+    body.roomId = payload.roomId;
+  }
+  if (typeof payload.stripeCustomerId === "string" && payload.stripeCustomerId.length > 0) {
+    body.stripeCustomerId = payload.stripeCustomerId;
+  }
+  await post("/stripe/updateRoomStatus", body);
 }
 
 export async function registerStripeEvent(

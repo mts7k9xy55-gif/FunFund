@@ -3,7 +3,7 @@
 
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 
 /**
  * HTTP Action: Room statusを更新
@@ -15,17 +15,29 @@ export const updateRoomStatusHttp = httpAction(async (ctx, request) => {
   }
 
   const body = await request.json();
-  const { roomId, status } = body;
+  const { roomId, stripeCustomerId, status } = body as {
+    roomId?: string;
+    stripeCustomerId?: string;
+    status?: "active" | "past_due" | "canceled";
+  };
 
-  if (!roomId || !status) {
-    return new Response("Missing roomId or status", { status: 400 });
+  if (!status) {
+    return new Response("Missing status", { status: 400 });
   }
 
-  // internal mutationを呼び出す
-  await ctx.runMutation(internal.rooms.updateRoomStatusFromWebhook, {
-    roomId: roomId as Id<"rooms">,
-    status: status as "active" | "past_due" | "canceled",
-  });
+  if (roomId) {
+    await ctx.runMutation(internal.rooms.updateRoomStatusFromWebhook, {
+      roomId: roomId as Id<"rooms">,
+      status,
+    });
+  } else if (stripeCustomerId) {
+    await ctx.runMutation(internal.rooms.updateRoomStatusByStripeCustomer, {
+      stripeCustomerId,
+      status,
+    });
+  } else {
+    return new Response("Missing roomId or stripeCustomerId", { status: 400 });
+  }
 
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
@@ -43,17 +55,28 @@ export const setRoomStripeInfoHttp = httpAction(async (ctx, request) => {
   }
 
   const body = await request.json();
-  const { roomId, stripeCustomerId, stripeSubscriptionId } = body;
+  const { roomId, stripeCustomerId, stripeSubscriptionId } = body as {
+    roomId?: string;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+  };
 
-  if (!roomId || !stripeCustomerId || !stripeSubscriptionId) {
-    return new Response("Missing required fields", { status: 400 });
+  if (!roomId || !stripeSubscriptionId) {
+    return new Response("Missing roomId or stripeSubscriptionId", { status: 400 });
   }
 
-  await ctx.runMutation(internal.rooms.setRoomStripeInfo, {
-    roomId: roomId as Id<"rooms">,
-    stripeCustomerId,
-    stripeSubscriptionId,
-  });
+  if (stripeCustomerId) {
+    await ctx.runMutation(internal.rooms.setRoomStripeInfo, {
+      roomId: roomId as Id<"rooms">,
+      stripeCustomerId,
+      stripeSubscriptionId,
+    });
+  } else {
+    await ctx.runMutation(internal.rooms.updateRoomStatusFromWebhook, {
+      roomId: roomId as Id<"rooms">,
+      status: "active",
+    });
+  }
 
   return new Response(JSON.stringify({ success: true }), {
     status: 200,

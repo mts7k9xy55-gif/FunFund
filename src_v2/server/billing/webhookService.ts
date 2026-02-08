@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { readStripeConfig } from "./env";
+import { readWebhookConfig } from "./env";
 import {
   registerStripeEvent,
   setRoomStripeInfo,
@@ -20,11 +20,25 @@ function extractSubscriptionId(
   return typeof value === "string" ? value : value.id;
 }
 
+function extractCustomerId(
+  value:
+    | string
+    | Stripe.Customer
+    | Stripe.DeletedCustomer
+    | null
+    | undefined
+): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return typeof value === "string" ? value : value.id;
+}
+
 export async function processStripeWebhook(payload: {
   signature: string | null;
   rawBody: string;
 }): Promise<WebhookResult> {
-  const { ok, missing, config } = readStripeConfig();
+  const { ok, missing, config } = readWebhookConfig();
   if (!ok) {
     return {
       status: 500,
@@ -73,27 +87,32 @@ export async function processStripeWebhook(payload: {
         const session = event.data.object as Stripe.Checkout.Session;
         const roomId = session.metadata?.roomId;
         const subscriptionId = extractSubscriptionId(session.subscription);
+        const customerId = extractCustomerId(session.customer);
 
         if (roomId && subscriptionId) {
-          await setRoomStripeInfo({
-            roomId,
-            stripeCustomerId: session.customer,
-            stripeSubscriptionId: subscriptionId,
-            status: "active",
-          });
+          if (customerId) {
+            await setRoomStripeInfo({
+              roomId,
+              stripeCustomerId: customerId,
+              stripeSubscriptionId: subscriptionId,
+              status: "active",
+            });
+          } else {
+            await updateRoomStatus({
+              roomId,
+              status: "active",
+            });
+          }
         }
         break;
       }
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        const invoiceWithSubscription = invoice as Stripe.Invoice & {
-          subscription?: string | Stripe.Subscription;
-        };
-        const subscriptionId = extractSubscriptionId(invoiceWithSubscription.subscription);
+        const customerId = extractCustomerId(invoice.customer);
 
-        if (subscriptionId) {
+        if (customerId) {
           await updateRoomStatus({
-            stripeSubscriptionId: subscriptionId,
+            stripeCustomerId: customerId,
             status: "active",
           });
         }
@@ -101,14 +120,11 @@ export async function processStripeWebhook(payload: {
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const invoiceWithSubscription = invoice as Stripe.Invoice & {
-          subscription?: string | Stripe.Subscription;
-        };
-        const subscriptionId = extractSubscriptionId(invoiceWithSubscription.subscription);
+        const customerId = extractCustomerId(invoice.customer);
 
-        if (subscriptionId) {
+        if (customerId) {
           await updateRoomStatus({
-            stripeSubscriptionId: subscriptionId,
+            stripeCustomerId: customerId,
             status: "past_due",
           });
         }
@@ -116,8 +132,12 @@ export async function processStripeWebhook(payload: {
       }
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
+        const customerId = extractCustomerId(subscription.customer);
+        if (!customerId) {
+          break;
+        }
         await updateRoomStatus({
-          stripeSubscriptionId: subscription.id,
+          stripeCustomerId: customerId,
           status: "canceled",
         });
         break;

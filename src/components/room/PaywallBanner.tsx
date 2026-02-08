@@ -63,10 +63,15 @@ export default function PaywallBanner({ roomStatus, roomId, language }: PaywallB
               }
 
               if (data.available === false) {
+                const missingDetail =
+                  Array.isArray(data.missing) && data.missing.length > 0
+                    ? ` (${data.missing.join(", ")})`
+                    : "";
                 throw new Error(
-                  language === "ja"
-                    ? "現在この環境では決済設定が未完了です"
-                    : "Stripe checkout is not configured in this environment"
+                  data.error ||
+                    (language === "ja"
+                      ? `現在この環境では決済設定が未完了です${missingDetail}`
+                      : `Stripe checkout is not configured in this environment${missingDetail}`)
                 );
               }
 
