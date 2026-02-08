@@ -5,18 +5,28 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 interface PublicDetailPageV2Props {
   id: string;
 }
 
+function isLikelyConvexId(value: string): boolean {
+  return /^[a-z0-9]+$/.test(value) && value.length >= 20;
+}
+
 export default function PublicDetailPageV2({ id }: PublicDetailPageV2Props) {
   const router = useRouter();
   const { isLoaded, user } = useUser();
-  const preview = useQuery(api.v2Public.getPublicProject, {
-    itemId: id as Id<"items">,
-  });
+  const canQuery = isLikelyConvexId(id);
+  const preview = useQuery(
+    api.v2Public.getPublicProject,
+    canQuery
+      ? {
+          itemId: id as Id<"items">,
+        }
+      : "skip"
+  );
 
   const handleJoin = () => {
     if (!isLoaded) {

@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { SignedIn, useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../convex/_generated/dataModel";
 import MenuDrawer from "./layout/MenuDrawer";
 import ThreadView from "./thread/ThreadView";
 import ItemComposer from "./composer/ItemComposer";

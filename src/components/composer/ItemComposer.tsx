@@ -22,34 +22,38 @@ export default function ItemComposer({
   const [reason, setReason] = useState("");
   const [attachments, setAttachments] = useState<{ type: "image" | "file"; file: File; preview?: string }[]>([]);
   const [mode, setMode] = useState<ComposerMode>("comment");
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedStamp, setSelectedStamp] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // よく使う絵文字リスト
-  const commonEmojis = [
-    "👍", "👎", "❤️", "🔥", "👏", "🎉", "😊", "😂",
-    "🤔", "💡", "✅", "❌", "⭐", "🚀", "💪", "🙏",
-    "👀", "💯", "🎯", "📌", "📝", "💬", "🤝", "⚡",
+  const quickStamps = [
+    { emoji: "👍", ja: "賛成", en: "Agree" },
+    { emoji: "💡", ja: "提案", en: "Idea" },
+    { emoji: "🔥", ja: "熱い", en: "Hot" },
+    { emoji: "🤔", ja: "要検討", en: "Review" },
+    { emoji: "✅", ja: "完了", en: "Done" },
+    { emoji: "🚀", ja: "推進", en: "Push" },
   ];
-
-  const insertEmoji = (emoji: string) => {
-    setContent((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-    textareaRef.current?.focus();
-  };
 
   const handleSubmit = () => {
     if (!content.trim() && attachments.length === 0) return;
-    
+
+    const requiresReason = (mode === "evaluation" || mode === "project") && reasonRequired !== false;
+    if (requiresReason && !reason.trim()) return;
+
+    const normalizedContent = content.trim();
+    const contentWithStamp = selectedStamp
+      ? `${selectedStamp} ${normalizedContent}`.trim()
+      : normalizedContent;
+
     // 提言/プロジェクトの場合は理由を渡す
-    const reasonToSubmit = (mode === "evaluation" || mode === "project") ? reason : undefined;
-    
-    onSubmit?.(content, mode, reasonToSubmit, attachments.map((a) => ({ type: a.type, file: a.file })));
+    const reasonToSubmit = mode === "evaluation" || mode === "project" ? reason.trim() : undefined;
+
+    onSubmit?.(contentWithStamp, mode, reasonToSubmit, attachments.map((a) => ({ type: a.type, file: a.file })));
     setContent("");
     setReason("");
     setAttachments([]);
+    setSelectedStamp(null);
     setMode("comment"); // 送信後はコメントモードに戻す
   };
 
@@ -119,6 +123,16 @@ export default function ItemComposer({
     return language === "ja"
       ? "コメントを入力... (Cmd+Enterで送信)"
       : "Enter comment... (Cmd+Enter to send)";
+  };
+
+  const getSubmitLabel = () => {
+    if (mode === "evaluation") {
+      return language === "ja" ? "提言を投稿" : "Post Proposal";
+    }
+    if (mode === "project") {
+      return language === "ja" ? "プロジェクト投稿" : "Post Project";
+    }
+    return language === "ja" ? "コメント投稿" : "Post Comment";
   };
 
   return (
@@ -207,7 +221,10 @@ export default function ItemComposer({
         {(mode === "evaluation" || mode === "project") && (
           <div className="mb-3">
             <label className="block text-sm font-medium text-fg mb-2">
-              {language === "ja" ? "理由（必須）" : "Reason (required)"} <span className="text-red-500">*</span>
+              {reasonRequired !== false
+                ? (language === "ja" ? "理由（必須）" : "Reason (required)")
+                : (language === "ja" ? "理由（任意）" : "Reason (optional)")}
+              {reasonRequired !== false ? <span className="text-red-500"> *</span> : null}
             </label>
             <textarea
               value={reason}
@@ -223,7 +240,6 @@ export default function ItemComposer({
         {/* 入力行：テキスト＋送信ボタン（紙飛行機） */}
         <div className="flex items-end gap-2">
           <textarea
-            ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -235,23 +251,15 @@ export default function ItemComposer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={disabled || (!content.trim() && attachments.length === 0) || ((mode === "evaluation" || mode === "project") && !reason.trim())}
-            className="shrink-0 w-11 h-11 rounded-lg btn-primary flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            disabled={
+              disabled ||
+              (!content.trim() && attachments.length === 0) ||
+              ((mode === "evaluation" || mode === "project") && reasonRequired !== false && !reason.trim())
+            }
+            className="shrink-0 rounded-lg btn-primary px-3 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             aria-label={language === "ja" ? "送信" : "Send"}
           >
-            <svg
-              className="w-5 h-5 text-primary-fg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
+            {getSubmitLabel()}
           </button>
         </div>
 
@@ -272,37 +280,42 @@ export default function ItemComposer({
           onChange={handleFileChange}
         />
 
-        {/* 添付オプション：絵文字・画像・ファイル（すべてのモードで使用可能） */}
-        <div className="flex items-center gap-4 mt-3 relative">
-          {/* 絵文字ボタン */}
-          <div className="relative">
-          <button
-            type="button"
-            disabled={disabled}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-sm text-fg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          >
-              <span className="text-base">😊</span>
-              {language === "ja" ? "絵文字" : "Emoji"}
-            </button>
-            {/* 絵文字ピッカー */}
-            {showEmojiPicker && (
-              <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-xl shadow-lg z-10">
-                <div className="grid grid-cols-8 gap-1">
-                  {commonEmojis.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => insertEmoji(emoji)}
-                      className="w-8 h-8 flex items-center justify-center text-xl hover:bg-muted rounded transition-colors"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+        <div className="mt-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-fg">
+              {language === "ja" ? "クイックスタンプ" : "Quick Stamps"}
+            </p>
+            {selectedStamp ? (
+              <button
+                type="button"
+                onClick={() => setSelectedStamp(null)}
+                className="text-xs font-medium text-muted-fg hover:text-fg"
+              >
+                {language === "ja" ? "スタンプを外す" : "Clear Stamp"}
+              </button>
+            ) : null}
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {quickStamps.map((stamp) => (
+              <button
+                key={stamp.emoji}
+                type="button"
+                disabled={disabled}
+                onClick={() => setSelectedStamp((prev) => (prev === stamp.emoji ? null : stamp.emoji))}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  selectedStamp === stamp.emoji
+                    ? "border-primary bg-primary text-primary-fg"
+                    : "border-border bg-muted text-fg hover:bg-muted/80"
+                }`}
+              >
+                {stamp.emoji} {language === "ja" ? stamp.ja : stamp.en}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 添付オプション：画像・ファイル */}
+        <div className="flex items-center gap-4 mt-3">
           <button
             type="button"
             disabled={disabled}

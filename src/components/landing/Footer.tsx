@@ -10,23 +10,24 @@ const footerLinks = {
     links: [
       { label: "特徴", href: "#features" },
       { label: "評価システム", href: "#evaluation" },
-      { label: "料金", href: "#" },
+      { label: "公開プロジェクト", href: "/public" },
     ],
   },
   resources: {
     title: "リソース",
     links: [
-      { label: "ドキュメント", href: "#" },
-      { label: "API", href: "#" },
-      { label: "GitHub", href: "#" },
+      { label: "Room", href: "/room" },
+      { label: "GitHub", href: "https://github.com" },
+      { label: "使い方", href: "/#dashboard" },
     ],
   },
   company: {
     title: "会社",
     links: [
-      { label: "会社概要", href: "#" },
-      { label: "お問い合わせ", href: "#" },
-      { label: "プライバシー", href: "#" },
+      { label: "会社概要", href: "/#features" },
+      { label: "お問い合わせ", href: "mailto:support@funfund.app" },
+      { label: "プライバシー", href: "/privacy" },
+      { label: "利用規約", href: "/terms" },
     ],
   },
 };
@@ -38,6 +39,8 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const isExternalHref = (href: string) => href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:");
+
   return (
     <footer className="bg-gray-50 border-t border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -62,12 +65,23 @@ export default function Footer() {
               <ul className="space-y-3">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <a
-                      href={link.href}
-                      className="text-gray-600 hover:text-gray-900 text-sm transition-colors"
-                    >
-                      {link.label}
-                    </a>
+                    {isExternalHref(link.href) ? (
+                      <a
+                        href={link.href}
+                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        rel={link.href.startsWith("http") ? "noreferrer" : undefined}
+                        className="text-gray-600 hover:text-gray-900 text-sm transition-colors"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="text-gray-600 hover:text-gray-900 text-sm transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

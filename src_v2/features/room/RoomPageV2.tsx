@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 import Dashboard from "@/components/dashboard/Dashboard";
 import LayerInputs from "@/components/layer/LayerInputs";
 import PaywallBanner from "@/components/room/PaywallBanner";

@@ -4,7 +4,7 @@
 "use client";
 
 import { useState } from "react";
-import { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 interface PaywallBannerProps {
   roomStatus: "draft" | "active" | "past_due" | "canceled";
