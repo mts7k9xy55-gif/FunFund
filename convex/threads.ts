@@ -194,7 +194,7 @@ export const listThreads = query({
     const membership = memberships.find((m) => m.userId === user._id);
 
     if (!membership) {
-      throw new Error("You are not a member of this room");
+      return null;
     }
 
     const threads = await ctx.db

@@ -20,6 +20,10 @@ function formatMessageKind(kind: "comment" | "reason" | "execution") {
   return "返信";
 }
 
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url);
+}
+
 function renderBodyWithLinks(body: string) {
   const regex = /(https?:\/\/[^\s]+)/g;
   const elements: ReactNode[] = [];
@@ -38,17 +42,40 @@ function renderBodyWithLinks(body: string) {
     const trailing = rawUrl.match(/[),.!?、。]+$/)?.[0] ?? "";
     const cleanUrl = trailing ? rawUrl.slice(0, rawUrl.length - trailing.length) : rawUrl;
 
-    elements.push(
-      <a
-        key={`link-${index++}`}
-        href={cleanUrl}
-        target="_blank"
-        rel="noreferrer noopener"
-        className="underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
-      >
-        {cleanUrl}
-      </a>
-    );
+    if (isImageUrl(cleanUrl)) {
+      const mediaKey = `media-${index++}`;
+      elements.push(
+        <span key={mediaKey} className="my-3 block">
+          <a
+            href={cleanUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mb-2 block text-sm underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
+          >
+            {cleanUrl}
+          </a>
+          <a href={cleanUrl} target="_blank" rel="noreferrer noopener">
+            <img
+              src={cleanUrl}
+              alt="attachment"
+              className="max-h-80 max-w-full rounded-lg border border-slate-200 object-contain"
+            />
+          </a>
+        </span>
+      );
+    } else {
+      elements.push(
+        <a
+          key={`link-${index++}`}
+          href={cleanUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
+        >
+          {cleanUrl}
+        </a>
+      );
+    }
 
     if (trailing) {
       elements.push(<span key={`trail-${index++}`}>{trailing}</span>);
@@ -523,11 +550,11 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                               </div>
                             ) : null}
                           </div>
-                          <p className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
+                          <div className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
                             {message.hiddenAt
                               ? "この返信は非表示になっています。"
                               : renderBodyWithLinks(message.body)}
-                          </p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -571,11 +598,11 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                               </div>
                             ) : null}
                           </div>
-                          <p className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
+                          <div className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
                             {message.hiddenAt
                               ? "この返信は非表示になっています。"
                               : renderBodyWithLinks(message.body)}
-                          </p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -588,6 +615,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                       placeholder="返信を書く"
                       className="min-h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg leading-relaxed"
                     />
+                    <p className="text-xs text-slate-500">画像URLを本文に貼ると、その場で写真表示できます。</p>
                     <button
                       type="submit"
                       disabled={!canWriteToThread || postingReply || !replyBody.trim()}
@@ -624,6 +652,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                         placeholder="理由（任意）"
                         className="min-h-28 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
                       />
+                      <p className="text-xs text-slate-500">画像URLを理由に貼ると、その場で写真表示できます。</p>
                       <button
                         type="submit"
                         disabled={!canWriteToThread || postingIntent}
@@ -675,13 +704,13 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                               </div>
                             ) : null}
                           </div>
-                          <p className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
+                          <div className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
                             {intent.hiddenAt
                               ? "この意思は非表示になっています。"
                               : intent.reason
                                 ? renderBodyWithLinks(intent.reason)
                                 : "（空の意思）"}
-                          </p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -719,6 +748,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                         placeholder="補足メモ（任意）"
                         className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
                       />
+                      <p className="text-xs text-slate-500">画像URLをメモに貼ると、その場で写真表示できます。</p>
                       <button
                         type="submit"
                         disabled={savingFinalDecision || !finalConclusion.trim()}
@@ -736,13 +766,13 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                         <span>v{currentFinalDecision.version}</span>
                         <span>{currentFinalDecision.deciderName}</span>
                       </div>
-                      <p className="whitespace-pre-wrap text-lg font-semibold leading-relaxed text-emerald-900">
+                      <div className="whitespace-pre-wrap text-lg font-semibold leading-relaxed text-emerald-900">
                         {renderBodyWithLinks(currentFinalDecision.conclusion)}
-                      </p>
+                      </div>
                       {currentFinalDecision.note ? (
-                        <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-emerald-800">
+                        <div className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-emerald-800">
                           {renderBodyWithLinks(currentFinalDecision.note)}
-                        </p>
+                        </div>
                       ) : null}
                     </div>
                   ) : (
@@ -758,13 +788,13 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                             <span className="rounded bg-slate-100 px-2 py-0.5 font-semibold">v{decision.version}</span>
                             <span>{decision.deciderName}</span>
                           </div>
-                          <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
+                          <div className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
                             {renderBodyWithLinks(decision.conclusion)}
-                          </p>
+                          </div>
                           {decision.note ? (
-                            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+                            <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
                               {renderBodyWithLinks(decision.note)}
-                            </p>
+                            </div>
                           ) : null}
                         </div>
                       ))}
