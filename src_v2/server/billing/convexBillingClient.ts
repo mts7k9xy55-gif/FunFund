@@ -19,7 +19,7 @@ export interface StripeEventRegisterPayload {
 }
 
 function getConvexHttpBase(): string {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
   if (!convexUrl) {
     throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
   }
