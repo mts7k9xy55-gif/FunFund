@@ -79,11 +79,6 @@ export default function RoomPageV2() {
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [threadReason, setThreadReason] = useState("");
-  const [fractalEnabled, setFractalEnabled] = useState(false);
-  const [fractalDepth, setFractalDepth] = useState<1 | 2 | 3>(1);
-  const [fractalAssumption, setFractalAssumption] = useState("");
-  const [fractalRisk, setFractalRisk] = useState("");
-  const [fractalNextAction, setFractalNextAction] = useState("");
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
@@ -648,57 +643,6 @@ export default function RoomPageV2() {
                       className="mt-3 min-h-32 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base leading-relaxed"
                     />
 
-                    <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                      <summary className="cursor-pointer text-sm font-semibold text-slate-800">
-                        フラクタル詳細設計（任意）
-                      </summary>
-                      <div className="mt-3 space-y-2">
-                        <label className="flex items-center gap-2 text-xs text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={fractalEnabled}
-                            onChange={(event) => setFractalEnabled(event.target.checked)}
-                          />
-                          詳細設計を本文に含める
-                        </label>
-                        {fractalEnabled ? (
-                          <>
-                            <select
-                              value={fractalDepth}
-                              onChange={(event) => setFractalDepth(Number(event.target.value) as 1 | 2 | 3)}
-                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                            >
-                              <option value={1}>Depth 1（最小）</option>
-                              <option value={2}>Depth 2（中）</option>
-                              <option value={3}>Depth 3（詳細）</option>
-                            </select>
-                            <input
-                              value={fractalAssumption}
-                              onChange={(event) => setFractalAssumption(event.target.value)}
-                              placeholder="前提・仮説"
-                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                            />
-                            {fractalDepth >= 2 ? (
-                              <input
-                                value={fractalRisk}
-                                onChange={(event) => setFractalRisk(event.target.value)}
-                                placeholder="リスク・反証ポイント"
-                                className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                              />
-                            ) : null}
-                            {fractalDepth >= 3 ? (
-                              <input
-                                value={fractalNextAction}
-                                onChange={(event) => setFractalNextAction(event.target.value)}
-                                placeholder="次の一手（実行）"
-                                className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                              />
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
-                    </details>
-
                     {threadError ? <p className="mt-2 text-sm text-red-600">{threadError}</p> : null}
                     <button
                       type="button"
@@ -710,22 +654,7 @@ export default function RoomPageV2() {
                       }
                       onClick={async () => {
                         if (!effectiveRoomId) return;
-                        const fractalLines: string[] = [];
-                        if (fractalEnabled) {
-                          fractalLines.push("");
-                          fractalLines.push("---");
-                          fractalLines.push(`Fractal Depth: ${fractalDepth}`);
-                          if (fractalAssumption.trim()) {
-                            fractalLines.push(`前提: ${fractalAssumption.trim()}`);
-                          }
-                          if (fractalDepth >= 2 && fractalRisk.trim()) {
-                            fractalLines.push(`リスク: ${fractalRisk.trim()}`);
-                          }
-                          if (fractalDepth >= 3 && fractalNextAction.trim()) {
-                            fractalLines.push(`次の一手: ${fractalNextAction.trim()}`);
-                          }
-                        }
-                        const composedReason = `${threadBody.trim()}${fractalLines.length ? `\n${fractalLines.join("\n")}` : ""}`;
+                        const composedReason = threadBody.trim();
 
                         setCreatingThread(true);
                         setThreadError(null);
@@ -741,11 +670,6 @@ export default function RoomPageV2() {
                           setThreadTitle("");
                           setThreadBody("");
                           setThreadReason("");
-                          setFractalEnabled(false);
-                          setFractalDepth(1);
-                          setFractalAssumption("");
-                          setFractalRisk("");
-                          setFractalNextAction("");
                           setIsThreadComposerOpen(false);
                         } catch (error) {
                           const message = error instanceof Error ? error.message : "Thread creation failed";

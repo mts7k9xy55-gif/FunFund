@@ -13,21 +13,21 @@ export default function Home() {
             使える議論の場から、実行できる支援まで。
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-            FunFundは「議論して終わり」にしないための作業場です。提案を立て、理由付きで評価し、
-            合意形成を進め、送金導線まで一気通貫で運用できます。
+            FunFundは「議論して終わり」にしないための作業場です。Roomを作成して招待で参加し、
+            理由付きの意見を重ねて合意形成を進めます。
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
               href="/room"
               className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Roomを開く
+              Roomで作成・参加
             </Link>
             <Link
-              href="/public"
+              href="/privacy"
               className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              公開ボード（任意）
+              プライバシーポリシー
             </Link>
             <SignedOut>
               <Link
