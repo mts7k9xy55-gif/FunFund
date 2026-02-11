@@ -39,13 +39,7 @@ export const listPublicCatalog = query({
 
     return published
       .filter((row) => !!row.sourceItemId)
-      .filter(
-        (row) =>
-          row.evaluationCount > 0 ||
-          row.currentAmount > 0 ||
-          row.weightedScore > 0 ||
-          row.decisions.length > 0
-      )
+      .filter((row) => row.evaluationCount > 0 || row.currentAmount > 0)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((row) => ({
         id: row.sourceItemId!,
