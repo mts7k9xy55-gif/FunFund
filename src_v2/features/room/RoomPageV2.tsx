@@ -32,7 +32,7 @@ export default function RoomPageV2() {
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<Id<"threads"> | null>(null);
-  const [threadType, setThreadType] = useState<"comment" | "proposal">("comment");
+  const [threadType, setThreadType] = useState<"proposal" | "project">("proposal");
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [threadReason, setThreadReason] = useState("");
@@ -41,6 +41,7 @@ export default function RoomPageV2() {
   const [fractalAssumption, setFractalAssumption] = useState("");
   const [fractalRisk, setFractalRisk] = useState("");
   const [fractalNextAction, setFractalNextAction] = useState("");
+  const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
@@ -355,12 +356,22 @@ export default function RoomPageV2() {
 
             <section className="space-y-6">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900">今ある課題を解決すること</h2>
-                    <p className="text-sm text-slate-500">一覧から課題を選び、返信と判断で前に進める。</p>
+                    <p className="text-sm text-slate-500">まず一覧を見て、スレッドを選んで前に進める。</p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setThreadError(null);
+                        setIsThreadComposerOpen((prev) => !prev);
+                      }}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      {isThreadComposerOpen ? "起票フォームを閉じる" : "🔥 スレッドを起票"}
+                    </button>
                     <span className="rounded bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
                       課題 {activeThreads.length}
                     </span>
@@ -377,31 +388,38 @@ export default function RoomPageV2() {
                 </div>
 
                 {activeThreads.length === 0 ? (
-                  <p className="py-8 text-sm text-slate-500">未達成の課題スレッドはありません。</p>
+                  <p className="py-10 text-sm text-slate-500">未達成の課題スレッドはありません。</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid gap-4 xl:grid-cols-2">
                     {activeThreads.map((thread) => (
                       <button
                         key={thread._id}
                         type="button"
                         onClick={() => setSelectedThreadId(thread._id)}
-                        className={`w-full rounded-xl border px-4 py-4 text-left transition ${
+                        className={`w-full rounded-2xl border px-5 py-5 text-left transition ${
                           selectedThreadId === thread._id
-                            ? "border-blue-600 bg-blue-50"
+                            ? "border-blue-600 bg-blue-50 shadow-sm"
                             : "border-slate-200 bg-white hover:border-slate-300"
                         }`}
                       >
-                        <p className="truncate text-lg font-semibold text-slate-900">
-                          {thread.title ?? "Untitled"}
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="line-clamp-2 text-xl font-bold text-slate-900">
+                            {thread.title ?? "Untitled"}
+                          </p>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                            {thread.type === "proposal" ? "提案" : "企画"}
+                          </span>
+                        </div>
+                        <p className="mt-4 text-xs text-slate-500">
+                          作成: {new Date(thread.createdAt).toLocaleString("ja-JP")}
                         </p>
-                        <p className="mt-1 text-sm text-slate-500">{thread.type}</p>
                       </button>
                     ))}
                   </div>
                 )}
 
                 {showArchivedThreads ? (
-                  <div className="mt-5 border-t border-slate-200 pt-4">
+                  <div className="mt-6 border-t border-slate-200 pt-4">
                     <p className="mb-2 text-sm font-semibold text-slate-800">達成！</p>
                     {archivedThreads.length === 0 ? (
                       <p className="text-sm text-slate-500">達成済みスレッドはありません。</p>
@@ -431,142 +449,183 @@ export default function RoomPageV2() {
               </div>
 
               <div className="space-y-6">
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <select
-                      value={threadType}
-                      onChange={(event) => setThreadType(event.target.value as "comment" | "proposal")}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                    >
-                      <option value="comment">相談 / メモ</option>
-                      <option value="proposal">提案（判断対象）</option>
-                    </select>
-                    <input
-                      value={threadTitle}
-                      onChange={(event) => setThreadTitle(event.target.value)}
-                      placeholder="議題タイトル"
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <textarea
-                    value={threadBody}
-                    onChange={(event) => setThreadBody(event.target.value)}
-                    placeholder="背景・論点・条件を記入"
-                    className="mt-3 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  />
-                  {threadType === "proposal" ? (
-                    <textarea
-                      value={threadReason}
-                      onChange={(event) => setThreadReason(event.target.value)}
-                      placeholder="提案理由（必須）"
-                      className="mt-3 min-h-24 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                    />
-                  ) : null}
-                  <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <summary className="cursor-pointer text-sm font-semibold text-slate-800">
-                      フラクタル詳細設計（任意）
-                    </summary>
-                    <div className="mt-3 space-y-2">
-                      <label className="flex items-center gap-2 text-xs text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={fractalEnabled}
-                          onChange={(event) => setFractalEnabled(event.target.checked)}
-                        />
-                        詳細設計を本文に追加する
-                      </label>
-                      {fractalEnabled ? (
-                        <>
-                          <select
-                            value={fractalDepth}
-                            onChange={(event) => setFractalDepth(Number(event.target.value) as 1 | 2 | 3)}
-                            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                          >
-                            <option value={1}>Depth 1（最小）</option>
-                            <option value={2}>Depth 2（中）</option>
-                            <option value={3}>Depth 3（詳細）</option>
-                          </select>
-                          <input
-                            value={fractalAssumption}
-                            onChange={(event) => setFractalAssumption(event.target.value)}
-                            placeholder="前提・仮説"
-                            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                          />
-                          {fractalDepth >= 2 ? (
-                            <input
-                              value={fractalRisk}
-                              onChange={(event) => setFractalRisk(event.target.value)}
-                              placeholder="リスク・反証ポイント"
-                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                            />
-                          ) : null}
-                          {fractalDepth >= 3 ? (
-                            <input
-                              value={fractalNextAction}
-                              onChange={(event) => setFractalNextAction(event.target.value)}
-                              placeholder="次の一手（実行）"
-                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                            />
-                          ) : null}
-                        </>
-                      ) : null}
+                {isThreadComposerOpen ? (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-900">新規スレッド</h2>
+                        <p className="text-sm text-slate-500">情熱のある人が起票して、判断に必要な情報を揃える。</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsThreadComposerOpen(false)}
+                        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                      >
+                        閉じる
+                      </button>
                     </div>
-                  </details>
-                  {threadError ? <p className="mt-2 text-sm text-red-600">{threadError}</p> : null}
-                  <button
-                    type="button"
-                    disabled={!isActiveRoom || creatingThread || !threadBody.trim() || !threadTitle.trim()}
-                    onClick={async () => {
-                      if (!effectiveRoomId) return;
-                      const fractalLines: string[] = [];
-                      if (fractalEnabled) {
-                        fractalLines.push("");
-                        fractalLines.push("---");
-                        fractalLines.push(`Fractal Depth: ${fractalDepth}`);
-                        if (fractalAssumption.trim()) {
-                          fractalLines.push(`前提: ${fractalAssumption.trim()}`);
-                        }
-                        if (fractalDepth >= 2 && fractalRisk.trim()) {
-                          fractalLines.push(`リスク: ${fractalRisk.trim()}`);
-                        }
-                        if (fractalDepth >= 3 && fractalNextAction.trim()) {
-                          fractalLines.push(`次の一手: ${fractalNextAction.trim()}`);
-                        }
-                      }
-                      const composedBody = `${threadBody.trim()}${fractalLines.length ? `\n${fractalLines.join("\n")}` : ""}`;
 
-                      setCreatingThread(true);
-                      setThreadError(null);
-                      try {
-                        const newThreadId = await createThreadV2({
-                          roomId: effectiveRoomId,
-                          type: threadType,
-                          title: threadTitle.trim(),
-                          initialBody: composedBody,
-                          reason: threadReason.trim() ? threadReason.trim() : undefined,
-                        });
-                        setSelectedThreadId(newThreadId);
-                        setThreadTitle("");
-                        setThreadBody("");
-                        setThreadReason("");
-                        setFractalEnabled(false);
-                        setFractalDepth(1);
-                        setFractalAssumption("");
-                        setFractalRisk("");
-                        setFractalNextAction("");
-                      } catch (error) {
-                        const message = error instanceof Error ? error.message : "Thread creation failed";
-                        setThreadError(message);
-                      } finally {
-                        setCreatingThread(false);
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setThreadType("proposal")}
+                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                          threadType === "proposal"
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-300 bg-white hover:border-slate-400"
+                        }`}
+                      >
+                        <p className="text-base font-semibold text-slate-900">提案</p>
+                        <p className="mt-1 text-xs text-slate-500">判断を取りにいく案</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setThreadType("project")}
+                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                          threadType === "project"
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-300 bg-white hover:border-slate-400"
+                        }`}
+                      >
+                        <p className="text-base font-semibold text-slate-900">企画</p>
+                        <p className="mt-1 text-xs text-slate-500">実行まで見据えた進め方</p>
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <input
+                        value={threadTitle}
+                        onChange={(event) => setThreadTitle(event.target.value)}
+                        placeholder="議題タイトル"
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={threadReason}
+                        onChange={(event) => setThreadReason(event.target.value)}
+                        placeholder="提案理由・根拠（必須）"
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <textarea
+                      value={threadBody}
+                      onChange={(event) => setThreadBody(event.target.value)}
+                      placeholder="背景 / 論点 / 条件"
+                      className="mt-3 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    />
+
+                    <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                        フラクタル詳細設計（任意）
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        <label className="flex items-center gap-2 text-xs text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={fractalEnabled}
+                            onChange={(event) => setFractalEnabled(event.target.checked)}
+                          />
+                          詳細設計を本文に含める
+                        </label>
+                        {fractalEnabled ? (
+                          <>
+                            <select
+                              value={fractalDepth}
+                              onChange={(event) => setFractalDepth(Number(event.target.value) as 1 | 2 | 3)}
+                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                            >
+                              <option value={1}>Depth 1（最小）</option>
+                              <option value={2}>Depth 2（中）</option>
+                              <option value={3}>Depth 3（詳細）</option>
+                            </select>
+                            <input
+                              value={fractalAssumption}
+                              onChange={(event) => setFractalAssumption(event.target.value)}
+                              placeholder="前提・仮説"
+                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                            />
+                            {fractalDepth >= 2 ? (
+                              <input
+                                value={fractalRisk}
+                                onChange={(event) => setFractalRisk(event.target.value)}
+                                placeholder="リスク・反証ポイント"
+                                className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                              />
+                            ) : null}
+                            {fractalDepth >= 3 ? (
+                              <input
+                                value={fractalNextAction}
+                                onChange={(event) => setFractalNextAction(event.target.value)}
+                                placeholder="次の一手（実行）"
+                                className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                              />
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    </details>
+
+                    {threadError ? <p className="mt-2 text-sm text-red-600">{threadError}</p> : null}
+                    <button
+                      type="button"
+                      disabled={
+                        !isActiveRoom ||
+                        creatingThread ||
+                        !threadBody.trim() ||
+                        !threadTitle.trim() ||
+                        !threadReason.trim()
                       }
-                    }}
-                    className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {creatingThread ? "作成中..." : "スレッドを作成"}
-                  </button>
-                </section>
+                      onClick={async () => {
+                        if (!effectiveRoomId) return;
+                        const fractalLines: string[] = [];
+                        if (fractalEnabled) {
+                          fractalLines.push("");
+                          fractalLines.push("---");
+                          fractalLines.push(`Fractal Depth: ${fractalDepth}`);
+                          if (fractalAssumption.trim()) {
+                            fractalLines.push(`前提: ${fractalAssumption.trim()}`);
+                          }
+                          if (fractalDepth >= 2 && fractalRisk.trim()) {
+                            fractalLines.push(`リスク: ${fractalRisk.trim()}`);
+                          }
+                          if (fractalDepth >= 3 && fractalNextAction.trim()) {
+                            fractalLines.push(`次の一手: ${fractalNextAction.trim()}`);
+                          }
+                        }
+                        const composedBody = `${threadBody.trim()}${fractalLines.length ? `\n${fractalLines.join("\n")}` : ""}`;
+
+                        setCreatingThread(true);
+                        setThreadError(null);
+                        try {
+                          const newThreadId = await createThreadV2({
+                            roomId: effectiveRoomId,
+                            type: threadType,
+                            title: threadTitle.trim(),
+                            initialBody: composedBody,
+                            reason: threadReason.trim(),
+                          });
+                          setSelectedThreadId(newThreadId);
+                          setThreadTitle("");
+                          setThreadBody("");
+                          setThreadReason("");
+                          setFractalEnabled(false);
+                          setFractalDepth(1);
+                          setFractalAssumption("");
+                          setFractalRisk("");
+                          setFractalNextAction("");
+                          setIsThreadComposerOpen(false);
+                        } catch (error) {
+                          const message = error instanceof Error ? error.message : "Thread creation failed";
+                          setThreadError(message);
+                        } finally {
+                          setCreatingThread(false);
+                        }
+                      }}
+                      className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {creatingThread ? "起票中..." : "この内容で起票"}
+                    </button>
+                  </section>
+                ) : null}
 
                 {selectedThread ? (
                   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -583,7 +642,7 @@ export default function RoomPageV2() {
                             disabled={!isActiveRoom}
                             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            判断を追加
+                            判断する
                           </button>
                         ) : null}
                         {selectedRoom.myRole === "owner" ? (
@@ -599,7 +658,7 @@ export default function RoomPageV2() {
                               }
                               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
                             >
-                              {selectedThread.archivedAt ? "未達成に戻す" : "達成！へ移動"}
+                              {selectedThread.archivedAt ? "再オープン" : "達成！"}
                             </button>
                             <button
                               type="button"
