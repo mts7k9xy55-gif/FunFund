@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
@@ -14,6 +14,49 @@ function formatMessageKind(kind: "comment" | "reason" | "execution") {
   if (kind === "reason") return "提案理由";
   if (kind === "execution") return "実行";
   return "返信";
+}
+
+function renderBodyWithLinks(body: string) {
+  const regex = /(https?:\/\/[^\s]+)/g;
+  const elements: ReactNode[] = [];
+  let lastIndex = 0;
+  let index = 0;
+
+  for (const match of body.matchAll(regex)) {
+    const rawUrl = match[0];
+    const start = match.index ?? 0;
+    const end = start + rawUrl.length;
+
+    if (start > lastIndex) {
+      elements.push(<span key={`text-${index++}`}>{body.slice(lastIndex, start)}</span>);
+    }
+
+    const trailing = rawUrl.match(/[),.!?、。]+$/)?.[0] ?? "";
+    const cleanUrl = trailing ? rawUrl.slice(0, rawUrl.length - trailing.length) : rawUrl;
+
+    elements.push(
+      <a
+        key={`link-${index++}`}
+        href={cleanUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
+      >
+        {cleanUrl}
+      </a>
+    );
+
+    if (trailing) {
+      elements.push(<span key={`trail-${index++}`}>{trailing}</span>);
+    }
+    lastIndex = end;
+  }
+
+  if (lastIndex < body.length) {
+    elements.push(<span key={`text-${index++}`}>{body.slice(lastIndex)}</span>);
+  }
+
+  return elements.length ? elements : [<span key="text-0">{body}</span>];
 }
 
 export default function RoomPageV2() {
@@ -65,6 +108,7 @@ export default function RoomPageV2() {
   const [bankLast4Input, setBankLast4Input] = useState("");
   const [workingAction, setWorkingAction] = useState<string | null>(null);
   const [accountCopiedMessage, setAccountCopiedMessage] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -260,6 +304,45 @@ export default function RoomPageV2() {
     }
   };
 
+  const inviteUrl =
+    selectedRoom?.isPrivate && selectedRoom?.inviteCode
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/room?invite=${selectedRoom.inviteCode}`
+      : null;
+
+  const handleCopyInvite = async () => {
+    if (!inviteUrl || !navigator?.clipboard) {
+      setInviteMessage("招待リンクをコピーできませんでした");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteMessage("招待リンクをコピーしました");
+    } catch {
+      setInviteMessage("招待リンクのコピーに失敗しました");
+    }
+  };
+
+  const handleShareInvite = async () => {
+    if (!inviteUrl) {
+      setInviteMessage("このRoomは招待リンクが未設定です");
+      return;
+    }
+    try {
+      if (navigator?.share) {
+        await navigator.share({
+          title: "FunFund Room 招待",
+          text: "Roomに参加してください",
+          url: inviteUrl,
+        });
+        setInviteMessage("共有しました");
+        return;
+      }
+      await handleCopyInvite();
+    } catch {
+      setInviteMessage("共有をキャンセルしました");
+    }
+  };
+
   const handleSubmitReply = async (event: FormEvent) => {
     event.preventDefault();
     if (!selectedThreadId || !effectiveRoomId || !replyBody.trim()) return;
@@ -418,6 +501,30 @@ export default function RoomPageV2() {
                   </div>
                 </div>
 
+                {selectedRoom.isPrivate && selectedRoom.inviteCode ? (
+                  <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-semibold text-slate-800">招待リンク</p>
+                    <p className="mt-1 break-all text-xs text-slate-600">{inviteUrl}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCopyInvite}
+                        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                      >
+                        コピー
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleShareInvite}
+                        className="rounded border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                      >
+                        共有（DMへ）
+                      </button>
+                      {inviteMessage ? <p className="text-xs text-slate-500">{inviteMessage}</p> : null}
+                    </div>
+                  </div>
+                ) : null}
+
                 {activeThreads.length === 0 ? (
                   <p className="py-10 text-sm text-slate-500">未達成の課題スレッドはありません。</p>
                 ) : (
@@ -485,7 +592,7 @@ export default function RoomPageV2() {
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
                         <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
-                        <p className="text-sm text-slate-500">情熱のある人が作成して、判断に必要な情報を揃える。</p>
+                        <p className="text-sm text-slate-500">情熱のある人が作成して、意見に必要な情報を揃える。</p>
                       </div>
                       <button
                         type="button"
@@ -507,7 +614,7 @@ export default function RoomPageV2() {
                         }`}
                       >
                         <p className="text-base font-semibold text-slate-900">提案</p>
-                        <p className="mt-1 text-xs text-slate-500">判断を取りにいく案</p>
+                        <p className="mt-1 text-xs text-slate-500">意見を集める案</p>
                       </button>
                       <button
                         type="button"
@@ -678,7 +785,6 @@ export default function RoomPageV2() {
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <h2 className="text-2xl font-bold text-slate-900">{selectedThread.title ?? "Untitled"}</h2>
-                        <p className="text-sm text-slate-500">種別: {selectedThread.type}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {isDecisionV2Enabled() ? (
@@ -688,7 +794,7 @@ export default function RoomPageV2() {
                             disabled={!isActiveRoom}
                             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            判断する
+                            意見する
                           </button>
                         ) : null}
                         {selectedRoom.myRole === "owner" ? (
@@ -784,7 +890,9 @@ export default function RoomPageV2() {
                                 ) : null}
                               </div>
                               <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                                {message.hiddenAt ? "この返信は非表示になっています。" : message.body}
+                                {message.hiddenAt
+                                  ? "この返信は非表示になっています。"
+                                  : renderBodyWithLinks(message.body)}
                               </p>
                             </div>
                           ))}
@@ -834,7 +942,9 @@ export default function RoomPageV2() {
                               ) : null}
                             </div>
                             <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                              {message.hiddenAt ? "この返信は非表示になっています。" : message.body}
+                              {message.hiddenAt
+                                ? "この返信は非表示になっています。"
+                                : renderBodyWithLinks(message.body)}
                             </p>
                           </div>
                         ))
@@ -858,9 +968,9 @@ export default function RoomPageV2() {
                     </form>
 
                     <div className="mt-6 space-y-3">
-                      <h3 className="text-base font-bold text-slate-900">判断（評価 + 理由）</h3>
+                      <h3 className="text-base font-bold text-slate-900">意見（評価 + 理由）</h3>
                       {decisions.length === 0 ? (
-                        <p className="text-sm text-slate-500">まだ判断はありません。</p>
+                        <p className="text-sm text-slate-500">まだ意見はありません。</p>
                       ) : (
                         decisions.map((decision) => (
                           <div key={decision._id} className="rounded-lg border border-slate-200 p-3">
