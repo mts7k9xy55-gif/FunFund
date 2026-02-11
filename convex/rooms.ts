@@ -400,45 +400,21 @@ export const deleteRoom = mutation({
     if (!room) {
       throw new Error("Room not found");
     }
+    // 実運用優先: まず確実に一覧から消えるよう、メンバーシップを剥がす。
+    // ルーム実体は監査用に残し、アクセス不能化する。
+    const memberships = await ctx.db
+      .query("roomMembers")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
 
-    const [
-      memberships,
-      threads,
-      messages,
-      decisions,
-      layerInputs,
-      evaluations,
-      executions,
-      weightOverrides,
-      distributionProposals,
-      payoutLedgerRows,
-    ] = await Promise.all([
-      ctx.db.query("roomMembers").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("threads").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("messages").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("decisions").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("layerInputs").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("evaluations").withIndex("by_roomId", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("executions").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("roomWeightOverrides").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("distributionProposals").withIndex("by_roomId", (q) => q.eq("roomId", args.roomId)).collect(),
-      ctx.db.query("payoutLedger").withIndex("by_roomId", (q) => q.eq("roomId", args.roomId)).collect(),
-    ]);
+    await Promise.all(memberships.map((row) => ctx.db.delete(row._id)));
+    await ctx.db.patch(args.roomId, {
+      status: "canceled",
+      inviteCode: undefined,
+      stripeCustomerId: undefined,
+      stripeSubscriptionId: undefined,
+    });
 
-    await Promise.all([
-      ...memberships.map((row) => ctx.db.delete(row._id)),
-      ...threads.map((row) => ctx.db.delete(row._id)),
-      ...messages.map((row) => ctx.db.delete(row._id)),
-      ...decisions.map((row) => ctx.db.delete(row._id)),
-      ...layerInputs.map((row) => ctx.db.delete(row._id)),
-      ...evaluations.map((row) => ctx.db.delete(row._id)),
-      ...executions.map((row) => ctx.db.delete(row._id)),
-      ...weightOverrides.map((row) => ctx.db.delete(row._id)),
-      ...distributionProposals.map((row) => ctx.db.delete(row._id)),
-      ...payoutLedgerRows.map((row) => ctx.db.delete(row._id)),
-    ]);
-
-    await ctx.db.delete(args.roomId);
     return args.roomId;
   },
 });

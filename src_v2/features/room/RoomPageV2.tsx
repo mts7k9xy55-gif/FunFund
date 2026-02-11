@@ -36,6 +36,11 @@ export default function RoomPageV2() {
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [threadReason, setThreadReason] = useState("");
+  const [fractalEnabled, setFractalEnabled] = useState(false);
+  const [fractalDepth, setFractalDepth] = useState<1 | 2 | 3>(1);
+  const [fractalAssumption, setFractalAssumption] = useState("");
+  const [fractalRisk, setFractalRisk] = useState("");
+  const [fractalNextAction, setFractalNextAction] = useState("");
   const [creatingThread, setCreatingThread] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
@@ -348,89 +353,83 @@ export default function RoomPageV2() {
               <PaywallBanner roomStatus={selectedRoom.status} roomId={selectedRoom._id} language="ja" />
             ) : null}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">今ある課題を解決すること</h2>
-                  <p className="text-xs text-slate-500">
-                    まず課題スレッドを選び、返信を集めてから判断を入れる。
-                  </p>
+            <section className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">今ある課題を解決すること</h2>
+                    <p className="text-sm text-slate-500">一覧から課題を選び、返信と判断で前に進める。</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="rounded bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
+                      課題 {activeThreads.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowArchivedThreads((prev) => !prev)}
+                      className="rounded border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      {showArchivedThreads
+                        ? `達成！を隠す (${archivedThreads.length})`
+                        : `達成！ (${archivedThreads.length})`}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">
-                    課題 {activeThreads.length}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowArchivedThreads((prev) => !prev)}
-                    className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    {showArchivedThreads
-                      ? `アーカイブを隠す (${archivedThreads.length})`
-                      : `アーカイブ (${archivedThreads.length})`}
-                  </button>
-                </div>
+
+                {activeThreads.length === 0 ? (
+                  <p className="py-8 text-sm text-slate-500">未達成の課題スレッドはありません。</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activeThreads.map((thread) => (
+                      <button
+                        key={thread._id}
+                        type="button"
+                        onClick={() => setSelectedThreadId(thread._id)}
+                        className={`w-full rounded-xl border px-4 py-4 text-left transition ${
+                          selectedThreadId === thread._id
+                            ? "border-blue-600 bg-blue-50"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <p className="truncate text-lg font-semibold text-slate-900">
+                          {thread.title ?? "Untitled"}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">{thread.type}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {showArchivedThreads ? (
+                  <div className="mt-5 border-t border-slate-200 pt-4">
+                    <p className="mb-2 text-sm font-semibold text-slate-800">達成！</p>
+                    {archivedThreads.length === 0 ? (
+                      <p className="text-sm text-slate-500">達成済みスレッドはありません。</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {archivedThreads.map((thread) => (
+                          <button
+                            key={thread._id}
+                            type="button"
+                            onClick={() => setSelectedThreadId(thread._id)}
+                            className={`w-full rounded-lg border px-3 py-3 text-left text-sm transition ${
+                              selectedThreadId === thread._id
+                                ? "border-emerald-600 bg-emerald-50"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                          >
+                            <p className="truncate font-semibold text-slate-900">
+                              {thread.title ?? "Untitled"}
+                            </p>
+                            <p className="text-xs text-slate-500">達成済み</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
-              {activeThreads.length === 0 ? (
-                <p className="text-sm text-slate-500">未解決の課題スレッドはありません。</p>
-              ) : (
-                <div className="space-y-2">
-                  {activeThreads.map((thread) => (
-                    <button
-                      key={thread._id}
-                      type="button"
-                      onClick={() => setSelectedThreadId(thread._id)}
-                      className={`w-full rounded-lg border px-3 py-3 text-left text-sm transition ${
-                        selectedThreadId === thread._id
-                          ? "border-blue-600 bg-blue-50"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-900">
-                            {thread.title ?? "Untitled"}
-                          </p>
-                          <p className="text-xs text-slate-500">{thread.type}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {showArchivedThreads ? (
-                <div className="mt-4 border-t border-slate-200 pt-4">
-                  <p className="mb-2 text-xs font-semibold text-slate-700">アーカイブ（達成記録）</p>
-                  {archivedThreads.length === 0 ? (
-                    <p className="text-sm text-slate-500">アーカイブ済みスレッドはありません。</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {archivedThreads.map((thread) => (
-                        <button
-                          key={thread._id}
-                          type="button"
-                          onClick={() => setSelectedThreadId(thread._id)}
-                          className={`w-full rounded-lg border px-3 py-3 text-left text-sm transition ${
-                            selectedThreadId === thread._id
-                              ? "border-emerald-600 bg-emerald-50"
-                              : "border-slate-200 bg-white hover:border-slate-300"
-                          }`}
-                        >
-                          <p className="truncate font-semibold text-slate-900">
-                            {thread.title ?? "Untitled"}
-                          </p>
-                          <p className="text-xs text-slate-500">archived</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </section>
-
-            <section className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_400px]">
               <div className="space-y-6">
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
@@ -464,12 +463,79 @@ export default function RoomPageV2() {
                       className="mt-3 min-h-24 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                     />
                   ) : null}
+                  <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                      フラクタル詳細設計（任意）
+                    </summary>
+                    <div className="mt-3 space-y-2">
+                      <label className="flex items-center gap-2 text-xs text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={fractalEnabled}
+                          onChange={(event) => setFractalEnabled(event.target.checked)}
+                        />
+                        詳細設計を本文に追加する
+                      </label>
+                      {fractalEnabled ? (
+                        <>
+                          <select
+                            value={fractalDepth}
+                            onChange={(event) => setFractalDepth(Number(event.target.value) as 1 | 2 | 3)}
+                            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                          >
+                            <option value={1}>Depth 1（最小）</option>
+                            <option value={2}>Depth 2（中）</option>
+                            <option value={3}>Depth 3（詳細）</option>
+                          </select>
+                          <input
+                            value={fractalAssumption}
+                            onChange={(event) => setFractalAssumption(event.target.value)}
+                            placeholder="前提・仮説"
+                            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                          />
+                          {fractalDepth >= 2 ? (
+                            <input
+                              value={fractalRisk}
+                              onChange={(event) => setFractalRisk(event.target.value)}
+                              placeholder="リスク・反証ポイント"
+                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                            />
+                          ) : null}
+                          {fractalDepth >= 3 ? (
+                            <input
+                              value={fractalNextAction}
+                              onChange={(event) => setFractalNextAction(event.target.value)}
+                              placeholder="次の一手（実行）"
+                              className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                            />
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  </details>
                   {threadError ? <p className="mt-2 text-sm text-red-600">{threadError}</p> : null}
                   <button
                     type="button"
                     disabled={!isActiveRoom || creatingThread || !threadBody.trim() || !threadTitle.trim()}
                     onClick={async () => {
                       if (!effectiveRoomId) return;
+                      const fractalLines: string[] = [];
+                      if (fractalEnabled) {
+                        fractalLines.push("");
+                        fractalLines.push("---");
+                        fractalLines.push(`Fractal Depth: ${fractalDepth}`);
+                        if (fractalAssumption.trim()) {
+                          fractalLines.push(`前提: ${fractalAssumption.trim()}`);
+                        }
+                        if (fractalDepth >= 2 && fractalRisk.trim()) {
+                          fractalLines.push(`リスク: ${fractalRisk.trim()}`);
+                        }
+                        if (fractalDepth >= 3 && fractalNextAction.trim()) {
+                          fractalLines.push(`次の一手: ${fractalNextAction.trim()}`);
+                        }
+                      }
+                      const composedBody = `${threadBody.trim()}${fractalLines.length ? `\n${fractalLines.join("\n")}` : ""}`;
+
                       setCreatingThread(true);
                       setThreadError(null);
                       try {
@@ -477,13 +543,18 @@ export default function RoomPageV2() {
                           roomId: effectiveRoomId,
                           type: threadType,
                           title: threadTitle.trim(),
-                          initialBody: threadBody.trim(),
+                          initialBody: composedBody,
                           reason: threadReason.trim() ? threadReason.trim() : undefined,
                         });
                         setSelectedThreadId(newThreadId);
                         setThreadTitle("");
                         setThreadBody("");
                         setThreadReason("");
+                        setFractalEnabled(false);
+                        setFractalDepth(1);
+                        setFractalAssumption("");
+                        setFractalRisk("");
+                        setFractalNextAction("");
                       } catch (error) {
                         const message = error instanceof Error ? error.message : "Thread creation failed";
                         setThreadError(message);
@@ -528,7 +599,7 @@ export default function RoomPageV2() {
                               }
                               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
                             >
-                              {selectedThread.archivedAt ? "アーカイブ解除" : "アーカイブ"}
+                              {selectedThread.archivedAt ? "未達成に戻す" : "達成！へ移動"}
                             </button>
                             <button
                               type="button"
@@ -770,18 +841,6 @@ export default function RoomPageV2() {
                   </section>
                 ) : null}
               </div>
-
-              <aside className="space-y-6 xl:sticky xl:top-24 self-start">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-base font-bold text-slate-900">リード提案</h3>
-                  <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                    <li>・議論順: 返信で条件を出し切ってから判断を入力</li>
-                    <li>・アーカイブ: 合意済みのみ移動して成長記録として残す</li>
-                    <li>・削除: ownerだけに限定（監査性を維持）</li>
-                    <li>・送信者変更: デフォルトOFF推奨（なりすまし/監査コスト増）</li>
-                  </ul>
-                </section>
-              </aside>
             </section>
           </div>
         )}
