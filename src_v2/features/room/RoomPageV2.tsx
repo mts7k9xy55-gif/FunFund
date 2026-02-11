@@ -44,6 +44,8 @@ export default function RoomPageV2() {
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
+  const [isThreadFocusMode, setIsThreadFocusMode] = useState(false);
+  const [dangerArmedThreadId, setDangerArmedThreadId] = useState<Id<"threads"> | null>(null);
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
@@ -91,6 +93,13 @@ export default function RoomPageV2() {
     if (!exists) setSelectedThreadId(null);
   }, [roomThreads, selectedThreadId]);
 
+  useEffect(() => {
+    if (!selectedThreadId) {
+      setIsThreadFocusMode(false);
+      setDangerArmedThreadId(null);
+    }
+  }, [selectedThreadId]);
+
   const selectedThread = roomThreads.find((thread) => thread._id === selectedThreadId) ?? null;
   const activeThreads = useMemo(
     () => roomThreads.filter((thread) => !thread.archivedAt),
@@ -112,6 +121,18 @@ export default function RoomPageV2() {
   const threadMessages = threadDetail?.messages ?? [];
   const reasonMessages = threadMessages.filter((message) => message.kind === "reason");
   const replyMessages = threadMessages.filter((message) => message.kind !== "reason");
+  const shouldUseLegacyReasonSwap =
+    reasonMessages.length > 0 &&
+    replyMessages.length > 0 &&
+    reasonMessages[0].createdBy === replyMessages[0].createdBy &&
+    reasonMessages[0].body.trim().length <= 24 &&
+    replyMessages[0].body.trim().length >= 40;
+  const displayedReasonMessages = shouldUseLegacyReasonSwap
+    ? [replyMessages[0], ...reasonMessages]
+    : reasonMessages;
+  const displayedReplyMessages = shouldUseLegacyReasonSwap
+    ? replyMessages.slice(1)
+    : replyMessages;
   const roomMembers = useQuery(
     api.rooms.listRoomMembers,
     effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
@@ -329,6 +350,11 @@ export default function RoomPageV2() {
     }
   };
 
+  const handleSelectThread = (threadId: Id<"threads">) => {
+    setSelectedThreadId(threadId);
+    setIsThreadFocusMode(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -358,7 +384,9 @@ export default function RoomPageV2() {
             ) : null}
 
             <section className="space-y-6">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {!isThreadFocusMode ? (
+                <>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900">今ある課題を解決すること</h2>
@@ -398,7 +426,7 @@ export default function RoomPageV2() {
                       <button
                         key={thread._id}
                         type="button"
-                        onClick={() => setSelectedThreadId(thread._id)}
+                        onClick={() => handleSelectThread(thread._id)}
                         className={`w-full rounded-2xl border px-5 py-5 text-left transition ${
                           selectedThreadId === thread._id
                             ? "border-blue-600 bg-blue-50 shadow-sm"
@@ -432,7 +460,7 @@ export default function RoomPageV2() {
                           <button
                             key={thread._id}
                             type="button"
-                            onClick={() => setSelectedThreadId(thread._id)}
+                            onClick={() => handleSelectThread(thread._id)}
                             className={`w-full rounded-lg border px-3 py-3 text-left text-sm transition ${
                               selectedThreadId === thread._id
                                 ? "border-emerald-600 bg-emerald-50"
@@ -449,11 +477,11 @@ export default function RoomPageV2() {
                     )}
                   </div>
                 ) : null}
-              </div>
+                  </div>
 
-              <div className="space-y-6">
-                {isThreadComposerOpen ? (
-                  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="space-y-6">
+                    {isThreadComposerOpen ? (
+                      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
                         <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
@@ -505,15 +533,15 @@ export default function RoomPageV2() {
                       <input
                         value={threadReason}
                         onChange={(event) => setThreadReason(event.target.value)}
-                        placeholder="提案理由・根拠（必須）"
+                        placeholder="最初の返信（任意）"
                         className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                       />
                     </div>
                     <textarea
                       value={threadBody}
                       onChange={(event) => setThreadBody(event.target.value)}
-                      placeholder="背景 / 論点 / 条件"
-                      className="mt-3 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      placeholder="提案理由・背景・論点（必須）"
+                      className="mt-3 min-h-32 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base leading-relaxed"
                     />
 
                     <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -574,8 +602,7 @@ export default function RoomPageV2() {
                         !isActiveRoom ||
                         creatingThread ||
                         !threadBody.trim() ||
-                        !threadTitle.trim() ||
-                        !threadReason.trim()
+                        !threadTitle.trim()
                       }
                       onClick={async () => {
                         if (!effectiveRoomId) return;
@@ -594,7 +621,7 @@ export default function RoomPageV2() {
                             fractalLines.push(`次の一手: ${fractalNextAction.trim()}`);
                           }
                         }
-                        const composedBody = `${threadBody.trim()}${fractalLines.length ? `\n${fractalLines.join("\n")}` : ""}`;
+                        const composedReason = `${threadBody.trim()}${fractalLines.length ? `\n${fractalLines.join("\n")}` : ""}`;
 
                         setCreatingThread(true);
                         setThreadError(null);
@@ -603,10 +630,10 @@ export default function RoomPageV2() {
                             roomId: effectiveRoomId,
                             type: threadType,
                             title: threadTitle.trim(),
-                            initialBody: composedBody,
-                            reason: threadReason.trim(),
+                            initialBody: threadReason.trim() || "スレッドを開始しました。",
+                            reason: composedReason,
                           });
-                          setSelectedThreadId(newThreadId);
+                          handleSelectThread(newThreadId);
                           setThreadTitle("");
                           setThreadBody("");
                           setThreadReason("");
@@ -627,15 +654,31 @@ export default function RoomPageV2() {
                     >
                       {creatingThread ? "作成中..." : "この内容で作成"}
                     </button>
-                  </section>
-                ) : null}
+                      </section>
+                    ) : null}
+                  </div>
+                </>
+              ) : selectedThread ? (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-blue-800">スレッド表示モード</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsThreadFocusMode(false)}
+                      className="rounded border border-blue-300 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      一覧に戻る
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
-                {selectedThread ? (
+              {selectedThread ? (
                   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
-                        <h2 className="text-xl font-bold text-slate-900">{selectedThread.title ?? "Untitled"}</h2>
-                        <p className="text-xs text-slate-500">種別: {selectedThread.type}</p>
+                        <h2 className="text-2xl font-bold text-slate-900">{selectedThread.title ?? "Untitled"}</h2>
+                        <p className="text-sm text-slate-500">種別: {selectedThread.type}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {isDecisionV2Enabled() ? (
@@ -652,20 +695,42 @@ export default function RoomPageV2() {
                           <>
                             <button
                               type="button"
-                              disabled={threadActionId === selectedThread._id}
                               onClick={() =>
+                                setDangerArmedThreadId((prev) =>
+                                  prev === selectedThread._id ? null : selectedThread._id
+                                )
+                              }
+                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                            >
+                              {dangerArmedThreadId === selectedThread._id ? "★ 管理操作ON" : "☆ 管理操作"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={
+                                threadActionId === selectedThread._id ||
+                                dangerArmedThreadId !== selectedThread._id
+                              }
+                              onClick={() => {
+                                const targetLabel = selectedThread.archivedAt ? "再オープン" : "達成";
+                                const confirmed = window.confirm(
+                                  `${targetLabel}に変更します。続けますか？`
+                                );
+                                if (!confirmed) return;
                                 handleSetThreadArchived(
                                   selectedThread._id,
                                   !Boolean(selectedThread.archivedAt)
-                                )
-                              }
+                                );
+                              }}
                               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
                             >
                               {selectedThread.archivedAt ? "再オープン" : "達成！"}
                             </button>
                             <button
                               type="button"
-                              disabled={threadActionId === selectedThread._id}
+                              disabled={
+                                threadActionId === selectedThread._id ||
+                                dangerArmedThreadId !== selectedThread._id
+                              }
                               onClick={() => handleDeleteThread(selectedThread._id)}
                               className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                             >
@@ -677,10 +742,10 @@ export default function RoomPageV2() {
                     </div>
 
                     <div className="space-y-3">
-                      {reasonMessages.length > 0 ? (
+                      {displayedReasonMessages.length > 0 ? (
                         <>
-                          <h3 className="text-sm font-semibold text-slate-800">提案理由</h3>
-                          {reasonMessages.map((message) => (
+                          <h3 className="text-base font-bold text-slate-900">提案理由</h3>
+                          {displayedReasonMessages.map((message) => (
                             <div key={message._id} className="rounded-lg border border-slate-200 p-3">
                               <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
                                 <span className="rounded bg-slate-100 px-2 py-0.5">
@@ -718,7 +783,7 @@ export default function RoomPageV2() {
                                   </div>
                                 ) : null}
                               </div>
-                              <p className="whitespace-pre-wrap text-sm text-slate-700">
+                              <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
                                 {message.hiddenAt ? "この返信は非表示になっています。" : message.body}
                               </p>
                             </div>
@@ -726,11 +791,11 @@ export default function RoomPageV2() {
                         </>
                       ) : null}
 
-                      <h3 className="text-sm font-semibold text-slate-800">返信</h3>
-                      {replyMessages.length === 0 ? (
+                      <h3 className="text-base font-bold text-slate-900">返信</h3>
+                      {displayedReplyMessages.length === 0 ? (
                         <p className="text-sm text-slate-500">まだ返信はありません。</p>
                       ) : (
-                        replyMessages.map((message) => (
+                        displayedReplyMessages.map((message) => (
                           <div key={message._id} className="rounded-lg border border-slate-200 p-3">
                             <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
                               <span className="rounded bg-slate-100 px-2 py-0.5">
@@ -768,7 +833,7 @@ export default function RoomPageV2() {
                                 </div>
                               ) : null}
                             </div>
-                            <p className="whitespace-pre-wrap text-sm text-slate-700">
+                            <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
                               {message.hiddenAt ? "この返信は非表示になっています。" : message.body}
                             </p>
                           </div>
@@ -781,7 +846,7 @@ export default function RoomPageV2() {
                         value={replyBody}
                         onChange={(event) => setReplyBody(event.target.value)}
                         placeholder="返信を書く"
-                        className="min-h-24 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        className="min-h-32 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base leading-relaxed"
                       />
                       <button
                         type="submit"
@@ -793,7 +858,7 @@ export default function RoomPageV2() {
                     </form>
 
                     <div className="mt-6 space-y-3">
-                      <h3 className="text-sm font-semibold text-slate-800">判断（評価 + 理由）</h3>
+                      <h3 className="text-base font-bold text-slate-900">判断（評価 + 理由）</h3>
                       {decisions.length === 0 ? (
                         <p className="text-sm text-slate-500">まだ判断はありません。</p>
                       ) : (
@@ -805,7 +870,7 @@ export default function RoomPageV2() {
                               </span>
                               <span>{decision.evaluatorName}</span>
                             </div>
-                            <p className="whitespace-pre-wrap text-sm text-slate-700">{decision.reason}</p>
+                            <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">{decision.reason}</p>
                           </div>
                         ))
                       )}
@@ -951,7 +1016,6 @@ export default function RoomPageV2() {
                     </details>
                   </section>
                 ) : null}
-              </div>
             </section>
           </div>
         )}
