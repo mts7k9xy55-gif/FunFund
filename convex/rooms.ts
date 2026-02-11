@@ -189,14 +189,18 @@ export const listRoomsForMe = query({
  */
 export const getRoom = query({
   args: {
-    roomId: v.id("rooms"),
+    roomId: v.string(),
   },
   handler: async (ctx, args) => {
+    const normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    if (!normalizedRoomId) {
+      return null;
+    }
     const user = await getUserOrNull(ctx);
     if (!user) {
       return null;
     }
-    const room = await ctx.db.get(args.roomId);
+    const room = await ctx.db.get(normalizedRoomId);
 
     if (!room) {
       return null;
@@ -205,7 +209,7 @@ export const getRoom = query({
     // メンバーかチェック
     const memberships = await ctx.db
       .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
       .collect();
     
     const membership = memberships.find((m) => m.userId === user._id);
@@ -226,22 +230,26 @@ export const getRoom = query({
  */
 export const listRoomMembers = query({
   args: {
-    roomId: v.id("rooms"),
+    roomId: v.string(),
   },
   handler: async (ctx, args) => {
+    const normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    if (!normalizedRoomId) {
+      return [];
+    }
     const user = await getUserOrNull(ctx);
     if (!user) {
       return [];
     }
     try {
-      await requireRoomMember(ctx, args.roomId, user._id);
+      await requireRoomMember(ctx, normalizedRoomId, user._id);
     } catch {
       return [];
     }
 
     const memberships = await ctx.db
       .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
       .collect();
 
     return await Promise.all(

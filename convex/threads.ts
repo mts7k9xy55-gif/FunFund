@@ -181,9 +181,13 @@ export const deleteThread = mutation({
  */
 export const listThreads = query({
   args: {
-    roomId: v.id("rooms"),
+    roomId: v.string(),
   },
   handler: async (ctx, args) => {
+    const normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    if (!normalizedRoomId) {
+      return [];
+    }
     const user = await getUserOrNull(ctx);
     if (!user) {
       return [];
@@ -192,7 +196,7 @@ export const listThreads = query({
     // メンバーかチェック
     const memberships = await ctx.db
       .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
       .collect();
     
     const membership = memberships.find((m) => m.userId === user._id);
@@ -203,7 +207,7 @@ export const listThreads = query({
 
     const threads = await ctx.db
       .query("threads")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
       .collect();
 
     return threads;
@@ -215,14 +219,18 @@ export const listThreads = query({
  */
 export const getThread = query({
   args: {
-    threadId: v.id("threads"),
+    threadId: v.string(),
   },
   handler: async (ctx, args) => {
+    const normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    if (!normalizedThreadId) {
+      return null;
+    }
     const user = await getUserOrNull(ctx);
     if (!user) {
       return null;
     }
-    const thread = await ctx.db.get(args.threadId);
+    const thread = await ctx.db.get(normalizedThreadId);
 
     if (!thread) {
       return null;
@@ -243,7 +251,7 @@ export const getThread = query({
     // 判断一覧
     const decisionsRaw = await ctx.db
       .query("decisions")
-      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
       .collect();
 
     // 旧decision由来のreason messageは「提案理由」表示から除外する
@@ -254,7 +262,7 @@ export const getThread = query({
     // メッセージ一覧（非表示返信は owner/送信者のみ閲覧可能）
     const messagesRaw = await ctx.db
       .query("messages")
-      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
       .collect();
     const messages = messagesRaw.filter((message) => {
       if (
@@ -287,7 +295,7 @@ export const getThread = query({
     // 実行ログ一覧
     const executions = await ctx.db
       .query("executions")
-      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
       .collect();
 
     return {

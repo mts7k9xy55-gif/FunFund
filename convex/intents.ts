@@ -53,14 +53,18 @@ export const createIntent = mutation({
 
 export const listIntents = query({
   args: {
-    threadId: v.id("threads"),
+    threadId: v.string(),
   },
   handler: async (ctx, args) => {
+    const normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    if (!normalizedThreadId) {
+      return [];
+    }
     const user = await getUserOrNull(ctx);
     if (!user) {
       return [];
     }
-    const thread = await ctx.db.get(args.threadId);
+    const thread = await ctx.db.get(normalizedThreadId);
     if (!thread) {
       return [];
     }
@@ -78,7 +82,7 @@ export const listIntents = query({
 
     const intents = await ctx.db
       .query("intents")
-      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
       .collect();
 
     const visibleIntents = intents.filter((intent) => {
