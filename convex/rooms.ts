@@ -112,6 +112,43 @@ export const addMember = mutation({
 });
 
 /**
+ * Roomメンバーのroleを更新（ownerのみ）
+ * - ownerのroleは変更不可
+ * - 初期統治: member/viewer の切替で書き込み可否を管理
+ */
+export const updateMemberRole = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    memberUserId: v.id("users"),
+    role: v.union(v.literal("member"), v.literal("viewer")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    await requireOwnerPermission(ctx, args.roomId, user._id);
+
+    const memberships = await ctx.db
+      .query("roomMembers")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
+
+    const membership = memberships.find((row) => row.userId === args.memberUserId);
+    if (!membership) {
+      throw new Error("Member not found");
+    }
+
+    if (membership.role === "owner") {
+      throw new Error("Owner role cannot be changed");
+    }
+
+    await ctx.db.patch(membership._id, {
+      role: args.role,
+    });
+
+    return membership._id;
+  },
+});
+
+/**
  * 自分のRoom一覧を取得
  */
 export const listRoomsForMe = query({

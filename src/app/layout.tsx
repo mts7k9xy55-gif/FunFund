@@ -2,13 +2,16 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/convex";
-
-const isVercelPreview = process.env.VERCEL_ENV === "preview";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "FunFund",
   description: "判断の切れを可視化するプラットフォーム",
-  manifest: isVercelPreview ? undefined : "/manifest.json",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icons/icon-192x192-v2.png",
+    apple: "/icons/icon-180x180-v2.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -33,9 +36,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="ja">
         <head>
-          {!isVercelPreview ? (
-            <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180-v2.png" />
-          ) : null}
+          <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180-v2.png" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         </head>
@@ -45,6 +46,7 @@ export default function RootLayout({
               {children}
             </main>
           </ConvexClientProvider>
+          <ServiceWorkerRegister />
         </body>
       </html>
     </ClerkProvider>

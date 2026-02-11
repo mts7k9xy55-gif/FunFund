@@ -186,6 +186,36 @@ export default defineSchema({
     .index("by_createdBy", ["createdBy"])
     .index("by_targetUserId", ["targetUserId"]),
 
+  // Intent（意思）: 投稿者の意思入力（score/reason とも任意）
+  intents: defineTable({
+    roomId: v.id("rooms"),
+    threadId: v.id("threads"),
+    score: v.optional(v.number()),
+    reason: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    hiddenAt: v.optional(v.number()),
+    hiddenBy: v.optional(v.id("users")),
+  })
+    .index("by_room", ["roomId"])
+    .index("by_thread", ["threadId"])
+    .index("by_createdBy", ["createdBy"]),
+
+  // FinalDecision（最終決定）: threadごとに現在有効な決定は1件
+  finalDecisions: defineTable({
+    roomId: v.id("rooms"),
+    threadId: v.id("threads"),
+    version: v.number(),
+    isCurrent: v.boolean(),
+    conclusion: v.string(),
+    note: v.optional(v.string()),
+    decidedBy: v.id("users"),
+    decidedAt: v.number(),
+  })
+    .index("by_room", ["roomId"])
+    .index("by_thread", ["threadId"])
+    .index("by_thread_current", ["threadId", "isCurrent"]),
+
   // ユーザー重みプロファイル（FunFund全体）
   userWeightProfiles: defineTable({
     userId: v.id("users"),

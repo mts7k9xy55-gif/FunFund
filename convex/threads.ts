@@ -233,23 +233,35 @@ export const getThread = query({
       throw new Error("You are not a member of this room");
     }
 
+    // 判断一覧
+    const decisionsRaw = await ctx.db
+      .query("decisions")
+      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .collect();
+
+    // 旧decision由来のreason messageは「提案理由」表示から除外する
+    const legacyDecisionReasonIds = new Set(
+      decisionsRaw.map((decision) => decision.reasonMessageId)
+    );
+
     // メッセージ一覧（非表示返信は owner/送信者のみ閲覧可能）
     const messagesRaw = await ctx.db
       .query("messages")
       .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
       .collect();
     const messages = messagesRaw.filter((message) => {
+      if (
+        message.kind === "reason" &&
+        legacyDecisionReasonIds.has(message._id)
+      ) {
+        return false;
+      }
+
       if (!message.hiddenAt) {
         return true;
       }
       return membership.role === "owner" || message.createdBy === user._id;
     });
-
-    // 判断一覧
-    const decisionsRaw = await ctx.db
-      .query("decisions")
-      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
-      .collect();
 
     const decisions = decisionsRaw.filter((decision) => {
       const visibility = decision.visibility ?? "private";
