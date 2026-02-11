@@ -441,17 +441,38 @@ export default function RoomPageV2() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 w-full max-w-[1700px] items-center justify-between px-4 md:px-6">
+        <div className="mx-auto flex w-full max-w-[1700px] items-start justify-between gap-4 px-4 py-3 md:px-6">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund Room</h1>
             <p className="text-xs text-slate-500">For Practical Decision</p>
           </div>
-          <RoomSelector
-            selectedRoomId={selectedRoomId}
-            onSelectRoom={setSelectedRoomId}
-            language="ja"
-            onCreateRoom={() => {}}
-          />
+          <div className="flex flex-col items-end gap-2">
+            <RoomSelector
+              selectedRoomId={selectedRoomId}
+              onSelectRoom={setSelectedRoomId}
+              language="ja"
+              onCreateRoom={() => {}}
+            />
+            {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyInvite}
+                  className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  招待リンクをコピー
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShareInvite}
+                  className="rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                >
+                  共有（DMへ）
+                </button>
+              </div>
+            ) : null}
+            {inviteMessage ? <p className="text-xs text-slate-500">{inviteMessage}</p> : null}
+          </div>
         </div>
       </header>
 
@@ -500,30 +521,6 @@ export default function RoomPageV2() {
                     </button>
                   </div>
                 </div>
-
-                {selectedRoom.isPrivate && selectedRoom.inviteCode ? (
-                  <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-sm font-semibold text-slate-800">招待リンク</p>
-                    <p className="mt-1 break-all text-xs text-slate-600">{inviteUrl}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleCopyInvite}
-                        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                      >
-                        コピー
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleShareInvite}
-                        className="rounded border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                      >
-                        共有（DMへ）
-                      </button>
-                      {inviteMessage ? <p className="text-xs text-slate-500">{inviteMessage}</p> : null}
-                    </div>
-                  </div>
-                ) : null}
 
                 {activeThreads.length === 0 ? (
                   <p className="py-10 text-sm text-slate-500">未達成の課題スレッドはありません。</p>
