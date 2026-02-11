@@ -146,6 +146,8 @@ export default defineSchema({
     body: v.string(),
     createdBy: v.id("users"),
     createdAt: v.number(),
+    hiddenAt: v.optional(v.number()),
+    hiddenBy: v.optional(v.id("users")),
   })
     .index("by_room", ["roomId"])
     .index("by_thread", ["threadId"])

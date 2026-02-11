@@ -25,6 +25,8 @@ export default function RoomPageV2() {
   const createUserMutation = useMutation(api.users.createUser);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
   const postComment = useMutation(api.messages.postComment);
+  const setMessageHidden = useMutation(api.messages.setMessageHidden);
+  const deleteMessage = useMutation(api.messages.deleteMessage);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<Id<"threads"> | null>(null);
@@ -38,6 +40,7 @@ export default function RoomPageV2() {
   const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [postingReply, setPostingReply] = useState(false);
+  const [messageActionId, setMessageActionId] = useState<Id<"messages"> | null>(null);
 
   const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
   const [payoutAmount, setPayoutAmount] = useState("1000");
@@ -109,6 +112,7 @@ export default function RoomPageV2() {
     }
     return map;
   }, [users]);
+  const currentConvexUser = users.find((row) => row.userId === user?.id);
 
   const postJson = async <T extends Record<string, unknown>>(
     path: string,
@@ -233,13 +237,43 @@ export default function RoomPageV2() {
     }
   };
 
+  const canModerateMessage = (createdBy: Id<"users">) =>
+    selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
+
+  const handleToggleMessageHidden = async (messageId: Id<"messages">, hidden: boolean) => {
+    setMessageActionId(messageId);
+    try {
+      await setMessageHidden({ messageId, hidden });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "返信表示状態の更新に失敗しました";
+      setDecisionFeedback(message);
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: Id<"messages">) => {
+    const confirmed = window.confirm("この返信を削除します。元に戻せません。");
+    if (!confirmed) return;
+
+    setMessageActionId(messageId);
+    try {
+      await deleteMessage({ messageId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "返信削除に失敗しました";
+      setDecisionFeedback(message);
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex h-16 w-full max-w-[1700px] items-center justify-between px-4 md:px-6">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund Room</h1>
-            <p className="text-xs text-slate-500">Closed SNS for practical decisions</p>
+            <p className="text-xs text-slate-500">For Practical Decision</p>
           </div>
           <RoomSelector
             selectedRoomId={selectedRoomId}
@@ -263,141 +297,6 @@ export default function RoomPageV2() {
 
             <section className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_400px]">
               <div className="space-y-6">
-                {isPayoutsV1Enabled() ? (
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h2 className="text-lg font-bold text-slate-900">共通口座・支援</h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Room名: {selectedRoom.name} / 役割: {selectedRoom.myRole}
-                      {selectedRoom.isPrivate && selectedRoom.inviteCode
-                        ? ` / 招待コード: ${selectedRoom.inviteCode}`
-                        : ""}
-                    </p>
-
-                    <div className="mt-4 space-y-3">
-                      <button
-                        type="button"
-                        disabled={workingAction === "stripe_onboard"}
-                        onClick={handleStripeOnboard}
-                        className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {workingAction === "stripe_onboard" ? "Stripe連携中..." : "Stripe Connectを連携"}
-                      </button>
-
-                      <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                        <p className="text-xs font-semibold text-slate-700">銀行口座を登録</p>
-                        <input
-                          value={bankNameInput}
-                          onChange={(event) => setBankNameInput(event.target.value)}
-                          placeholder="銀行名"
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                        />
-                        <input
-                          value={bankLast4Input}
-                          onChange={(event) => setBankLast4Input(event.target.value)}
-                          placeholder="口座下4桁"
-                          maxLength={4}
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                        />
-                        <button
-                          type="button"
-                          disabled={workingAction === "bank_register"}
-                          onClick={handleBankRegister}
-                          className="rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {workingAction === "bank_register" ? "登録中..." : "銀行口座を保存"}
-                        </button>
-                      </div>
-
-                      <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                        <p className="text-xs font-semibold text-slate-700">登録済み口座</p>
-                        {myPayoutAccounts.length === 0 ? (
-                          <p className="text-xs text-slate-500">受取口座はまだ登録されていません</p>
-                        ) : (
-                          myPayoutAccounts.map((account) => {
-                            const label =
-                              account.method === "bank_account"
-                                ? `${account.bankName ?? "銀行"} / ****${account.accountLast4 ?? "----"}`
-                                : `Stripe Connect / ${account.externalRef ?? "未連携"}`;
-                            return (
-                              <div key={account._id} className="rounded border border-slate-200 bg-slate-50 p-2">
-                                <p className="text-xs font-medium text-slate-700">{label}</p>
-                                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-                                  <span>{account.status}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyAccountInfo(label)}
-                                    className="ml-auto rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
-                                  >
-                                    コピー
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                        {accountCopiedMessage ? <p className="text-[11px] text-slate-500">{accountCopiedMessage}</p> : null}
-                      </div>
-
-                      <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                        <p className="text-xs font-semibold text-slate-700">支援リクエスト</p>
-                        <select
-                          value={payoutRecipientUserId}
-                          onChange={(event) => setPayoutRecipientUserId(event.target.value as Id<"users"> | "")}
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                        >
-                          <option value="">自分宛て</option>
-                          {roomMembers.map((member) => (
-                            <option key={member._id} value={member.userId}>
-                              {member.userName} ({member.role})
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          value={payoutAmount}
-                          onChange={(event) => setPayoutAmount(event.target.value)}
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                          placeholder="金額"
-                        />
-                        <select
-                          value={payoutMethod}
-                          onChange={(event) => setPayoutMethod(event.target.value as "stripe_connect" | "bank_account")}
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                        >
-                          <option value="bank_account">bank_account</option>
-                          <option value="stripe_connect">stripe_connect</option>
-                        </select>
-                        <input
-                          value={payoutNote}
-                          onChange={(event) => setPayoutNote(event.target.value)}
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                          placeholder="メモ（任意）"
-                        />
-                        <button
-                          type="button"
-                          disabled={workingAction === "payout_request"}
-                          onClick={handlePayoutRequest}
-                          className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {workingAction === "payout_request" ? "登録中..." : "送金リクエストを作成"}
-                        </button>
-                      </div>
-
-                      <div className="space-y-1 text-xs text-slate-600">
-                        <p>登録口座数: {myPayoutAccounts.length}</p>
-                        <p>送金台帳件数: {roomPayoutLedger.length}</p>
-                        {membersMissingPayout.length > 0 ? (
-                          <p className="text-amber-700">
-                            送金方法未登録メンバー: {membersMissingPayout.map((row) => row.userName).join(", ")}
-                          </p>
-                        ) : (
-                          <p className="text-green-700">全メンバーが送金方法を登録済み</p>
-                        )}
-                        {payoutMessage ? <p>{payoutMessage}</p> : null}
-                      </div>
-                    </div>
-                  </section>
-                ) : null}
-
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -494,8 +393,40 @@ export default function RoomPageV2() {
                                 {formatMessageKind(message.kind)}
                               </span>
                               <span>{userNameById.get(message.createdBy) ?? "Unknown"}</span>
+                              {message.hiddenAt ? (
+                                <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">
+                                  非表示
+                                </span>
+                              ) : null}
+                              {canModerateMessage(message.createdBy) ? (
+                                <div className="ml-auto flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={messageActionId === message._id}
+                                    onClick={() =>
+                                      handleToggleMessageHidden(
+                                        message._id,
+                                        !Boolean(message.hiddenAt)
+                                      )
+                                    }
+                                    className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                                  >
+                                    {message.hiddenAt ? "再表示" : "非表示"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={messageActionId === message._id}
+                                    onClick={() => handleDeleteMessage(message._id)}
+                                    className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                                  >
+                                    削除
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
-                            <p className="whitespace-pre-wrap text-sm text-slate-700">{message.body}</p>
+                            <p className="whitespace-pre-wrap text-sm text-slate-700">
+                              {message.hiddenAt ? "この返信は非表示になっています。" : message.body}
+                            </p>
                           </div>
                         ))
                       )}
@@ -535,6 +466,145 @@ export default function RoomPageV2() {
                         ))
                       )}
                     </div>
+                  </section>
+                ) : null}
+
+                {isPayoutsV1Enabled() ? (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <details>
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                        共通口座・支援（二の次 / 必要な時だけ）
+                      </summary>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Room名: {selectedRoom.name} / 役割: {selectedRoom.myRole}
+                        {selectedRoom.isPrivate && selectedRoom.inviteCode
+                          ? ` / 招待コード: ${selectedRoom.inviteCode}`
+                          : ""}
+                      </p>
+
+                      <div className="mt-4 space-y-3">
+                        <button
+                          type="button"
+                          disabled={workingAction === "stripe_onboard"}
+                          onClick={handleStripeOnboard}
+                          className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {workingAction === "stripe_onboard" ? "Stripe連携中..." : "Stripe Connectを連携"}
+                        </button>
+
+                        <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                          <p className="text-xs font-semibold text-slate-700">銀行口座を登録</p>
+                          <input
+                            value={bankNameInput}
+                            onChange={(event) => setBankNameInput(event.target.value)}
+                            placeholder="銀行名"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                          <input
+                            value={bankLast4Input}
+                            onChange={(event) => setBankLast4Input(event.target.value)}
+                            placeholder="口座下4桁"
+                            maxLength={4}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                          <button
+                            type="button"
+                            disabled={workingAction === "bank_register"}
+                            onClick={handleBankRegister}
+                            className="rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {workingAction === "bank_register" ? "登録中..." : "銀行口座を保存"}
+                          </button>
+                        </div>
+
+                        <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                          <p className="text-xs font-semibold text-slate-700">登録済み口座</p>
+                          {myPayoutAccounts.length === 0 ? (
+                            <p className="text-xs text-slate-500">受取口座はまだ登録されていません</p>
+                          ) : (
+                            myPayoutAccounts.map((account) => {
+                              const label =
+                                account.method === "bank_account"
+                                  ? `${account.bankName ?? "銀行"} / ****${account.accountLast4 ?? "----"}`
+                                  : `Stripe Connect / ${account.externalRef ?? "未連携"}`;
+                              return (
+                                <div key={account._id} className="rounded border border-slate-200 bg-slate-50 p-2">
+                                  <p className="text-xs font-medium text-slate-700">{label}</p>
+                                  <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                                    <span>{account.status}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyAccountInfo(label)}
+                                      className="ml-auto rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
+                                    >
+                                      コピー
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                          {accountCopiedMessage ? <p className="text-[11px] text-slate-500">{accountCopiedMessage}</p> : null}
+                        </div>
+
+                        <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                          <p className="text-xs font-semibold text-slate-700">支援リクエスト</p>
+                          <select
+                            value={payoutRecipientUserId}
+                            onChange={(event) => setPayoutRecipientUserId(event.target.value as Id<"users"> | "")}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          >
+                            <option value="">自分宛て</option>
+                            {roomMembers.map((member) => (
+                              <option key={member._id} value={member.userId}>
+                                {member.userName} ({member.role})
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            value={payoutAmount}
+                            onChange={(event) => setPayoutAmount(event.target.value)}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                            placeholder="金額"
+                          />
+                          <select
+                            value={payoutMethod}
+                            onChange={(event) => setPayoutMethod(event.target.value as "stripe_connect" | "bank_account")}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          >
+                            <option value="bank_account">bank_account</option>
+                            <option value="stripe_connect">stripe_connect</option>
+                          </select>
+                          <input
+                            value={payoutNote}
+                            onChange={(event) => setPayoutNote(event.target.value)}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                            placeholder="メモ（任意）"
+                          />
+                          <button
+                            type="button"
+                            disabled={workingAction === "payout_request"}
+                            onClick={handlePayoutRequest}
+                            className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {workingAction === "payout_request" ? "登録中..." : "送金リクエストを作成"}
+                          </button>
+                        </div>
+
+                        <div className="space-y-1 text-xs text-slate-600">
+                          <p>登録口座数: {myPayoutAccounts.length}</p>
+                          <p>送金台帳件数: {roomPayoutLedger.length}</p>
+                          {membersMissingPayout.length > 0 ? (
+                            <p className="text-amber-700">
+                              送金方法未登録メンバー: {membersMissingPayout.map((row) => row.userName).join(", ")}
+                            </p>
+                          ) : (
+                            <p className="text-green-700">全メンバーが送金方法を登録済み</p>
+                          )}
+                          {payoutMessage ? <p>{payoutMessage}</p> : null}
+                        </div>
+                      </div>
+                    </details>
                   </section>
                 ) : null}
               </div>

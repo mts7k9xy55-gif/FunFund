@@ -3,7 +3,7 @@
 
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
-import { requireUser, requireWritePermission } from "./_guards";
+import { requireRoomMember, requireUser, requireWritePermission } from "./_guards";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -38,5 +38,74 @@ export const postComment = mutation({
     });
 
     return messageId;
+  },
+});
+
+/**
+ * 返信の表示状態を切り替え
+ * - owner または 送信者のみ
+ */
+export const setMessageHidden = mutation({
+  args: {
+    messageId: v.id("messages"),
+    hidden: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const membership = await requireRoomMember(ctx, message.roomId, user._id);
+    const canModerate = membership.role === "owner" || message.createdBy === user._id;
+    if (!canModerate) {
+      throw new Error("Only room owner or sender can update message visibility");
+    }
+
+    await ctx.db.patch(args.messageId, {
+      hiddenAt: args.hidden ? Date.now() : undefined,
+      hiddenBy: args.hidden ? user._id : undefined,
+    });
+
+    return args.messageId;
+  },
+});
+
+/**
+ * 返信を削除
+ * - owner または 送信者のみ
+ * - decisions.reasonMessageId に紐づく理由は削除不可
+ */
+export const deleteMessage = mutation({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const membership = await requireRoomMember(ctx, message.roomId, user._id);
+    const canModerate = membership.role === "owner" || message.createdBy === user._id;
+    if (!canModerate) {
+      throw new Error("Only room owner or sender can delete message");
+    }
+
+    const decisions = await ctx.db
+      .query("decisions")
+      .withIndex("by_thread", (q) => q.eq("threadId", message.threadId))
+      .collect();
+    const boundToDecision = decisions.some(
+      (decision) => decision.reasonMessageId === args.messageId
+    );
+    if (boundToDecision) {
+      throw new Error("Decision reason message cannot be deleted");
+    }
+
+    await ctx.db.delete(args.messageId);
+    return args.messageId;
   },
 });

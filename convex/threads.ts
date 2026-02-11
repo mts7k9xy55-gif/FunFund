@@ -127,11 +127,17 @@ export const getThread = query({
       throw new Error("You are not a member of this room");
     }
 
-    // メッセージ一覧
-    const messages = await ctx.db
+    // メッセージ一覧（非表示返信は owner/送信者のみ閲覧可能）
+    const messagesRaw = await ctx.db
       .query("messages")
       .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
       .collect();
+    const messages = messagesRaw.filter((message) => {
+      if (!message.hiddenAt) {
+        return true;
+      }
+      return membership.role === "owner" || message.createdBy === user._id;
+    });
 
     // 判断一覧
     const decisionsRaw = await ctx.db
