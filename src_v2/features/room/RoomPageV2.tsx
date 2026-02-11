@@ -26,7 +26,6 @@ export default function RoomPageV2() {
   const roomsQuery = useQuery(api.rooms.listRoomsForMe);
   const rooms = useMemo(() => roomsQuery ?? [], [roomsQuery]);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
-  const seedPublicProjects = useMutation(api.v2Public.seedPublicProjectsFromLegacy);
   const setEvaluatorPublishConsent = useMutation(api.decisions.setEvaluatorPublishConsent);
   const setTargetPublishConsent = useMutation(api.decisions.setTargetPublishConsent);
   const setRoomWeightOverride = useMutation(api.weights.setRoomWeightOverride);
@@ -36,14 +35,12 @@ export default function RoomPageV2() {
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<Id<"threads"> | null>(null);
   const [showLegacyHub, setShowLegacyHub] = useState(false);
-  const [threadType, setThreadType] = useState<"comment" | "proposal" | "project">("comment");
+  const [threadType, setThreadType] = useState<"comment" | "proposal">("comment");
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [threadReason, setThreadReason] = useState("");
   const [creatingThread, setCreatingThread] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
-  const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null);
   const [settingConsentId, setSettingConsentId] = useState<string | null>(null);
@@ -95,7 +92,6 @@ export default function RoomPageV2() {
     api.payouts.listRoomPayoutLedger,
     effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
   );
-  const migrationSnapshot = useQuery(api.v2Migration.snapshotMigrationCounts, {});
 
   const effectiveThreadId = useMemo(() => {
     if (!roomThreads.length) {
@@ -297,37 +293,36 @@ export default function RoomPageV2() {
               <Dashboard roomId={selectedRoom._id} threadId={effectiveThreadId ?? undefined} language="ja" />
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-900">New Thread (v2)</h2>
+                <h2 className="text-lg font-bold text-slate-900">新しい議題</h2>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <select
                     value={threadType}
                     onChange={(event) =>
-                      setThreadType(event.target.value as "comment" | "proposal" | "project")
+                      setThreadType(event.target.value as "comment" | "proposal")
                     }
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
-                    <option value="comment">comment</option>
-                    <option value="proposal">proposal</option>
-                    <option value="project">project</option>
+                    <option value="comment">相談 / メモ</option>
+                    <option value="proposal">提案（判断対象）</option>
                   </select>
                   <input
                     value={threadTitle}
                     onChange={(event) => setThreadTitle(event.target.value)}
-                    placeholder="タイトル"
+                    placeholder="議題タイトル"
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
                 <textarea
                   value={threadBody}
                   onChange={(event) => setThreadBody(event.target.value)}
-                  placeholder="最初の本文"
+                  placeholder="背景・論点・条件を記入"
                   className="mt-3 min-h-24 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
-                {(threadType === "proposal" || threadType === "project") && (
+                {threadType === "proposal" && (
                   <textarea
                     value={threadReason}
                     onChange={(event) => setThreadReason(event.target.value)}
-                    placeholder="理由（proposal/projectは必須）"
+                    placeholder="提案理由（必須）"
                     className="mt-3 min-h-20 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 )}
@@ -524,38 +519,6 @@ export default function RoomPageV2() {
                   evaluations={roomMetrics?.evaluationCount ?? 0}
                 </li>
               </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-base font-bold text-slate-900">Migration Control</h2>
-              <div className="mt-3 space-y-2 text-sm text-slate-600">
-                <p>users: {migrationSnapshot?.users ?? 0}</p>
-                <p>rooms: {migrationSnapshot?.rooms ?? 0}</p>
-                <p>threads: {migrationSnapshot?.threads ?? 0}</p>
-                <p>evaluations: {migrationSnapshot?.evaluations ?? 0}</p>
-                <p>publicProjectsV2: {migrationSnapshot?.publicProjectsV2 ?? 0}</p>
-              </div>
-              <button
-                type="button"
-                disabled={seeding}
-                onClick={async () => {
-                  setSeeding(true);
-                  setMigrationMessage(null);
-                  try {
-                    const result = await seedPublicProjects({ limit: 200 });
-                    setMigrationMessage(`Seeded ${result.created} projects`);
-                  } catch (error) {
-                    const message = error instanceof Error ? error.message : "Failed to seed";
-                    setMigrationMessage(message);
-                  } finally {
-                    setSeeding(false);
-                  }
-                }}
-                className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {seeding ? "Seeding..." : "Seed v2 Public Projects"}
-              </button>
-              {migrationMessage ? <p className="mt-2 text-xs text-slate-500">{migrationMessage}</p> : null}
             </div>
 
             {isWeightsV2Enabled() ? (

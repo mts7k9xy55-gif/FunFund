@@ -7,7 +7,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 
 interface PublicDetailPageV1Props {
@@ -15,6 +15,7 @@ interface PublicDetailPageV1Props {
 }
 
 export default function PublicDetailPageV1({ id }: PublicDetailPageV1Props) {
+  const { openSignIn } = useClerk();
   const { user, isLoaded } = useUser();
   const preview = useQuery(api.publicPreviews.getPublicPreview, {
     itemId: id as Id<"items">,
@@ -26,7 +27,7 @@ export default function PublicDetailPageV1({ id }: PublicDetailPageV1Props) {
 
     if (!user) {
       // ログインが必要
-      router.push("/sign-in");
+      openSignIn();
       return;
     }
 

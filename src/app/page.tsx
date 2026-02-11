@@ -27,14 +27,14 @@ export default function Home() {
               href="/public"
               className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              公開プロジェクトを見る
+              公開ボード（任意）
             </Link>
             <SignedOut>
               <Link
-                href="/sign-in"
+                href="/room"
                 className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                ログイン
+                ログインして始める
               </Link>
             </SignedOut>
             <SignedIn>
@@ -66,7 +66,7 @@ export default function Home() {
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">03</p>
             <h2 className="mt-3 text-xl font-bold text-slate-900">財政支援を円滑に</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              口座情報登録、表示、送金リクエストを同じ画面で処理。支援実行の詰まりを減らします。
+              口座情報登録、表示、送金リクエストを同じ画面で処理。寄付や支援実行の詰まりを減らします。
             </p>
           </article>
         </section>

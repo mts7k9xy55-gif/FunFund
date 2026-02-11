@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
-import { useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -17,6 +17,7 @@ function isLikelyConvexId(value: string): boolean {
 
 export default function PublicDetailPageV2({ id }: PublicDetailPageV2Props) {
   const router = useRouter();
+  const { openSignIn } = useClerk();
   const { isLoaded, user } = useUser();
   const canQuery = isLikelyConvexId(id);
   const preview = useQuery(
@@ -33,7 +34,7 @@ export default function PublicDetailPageV2({ id }: PublicDetailPageV2Props) {
       return;
     }
     if (!user) {
-      router.push("/sign-in");
+      openSignIn();
       return;
     }
     router.push("/room");
@@ -43,7 +44,7 @@ export default function PublicDetailPageV2({ id }: PublicDetailPageV2Props) {
     return (
       <main className="mx-auto flex min-h-screen max-w-4xl items-center justify-center px-4">
         <p className="rounded-xl border border-slate-300 bg-white px-6 py-4 text-sm text-slate-600">
-          プロジェクトが見つかりません。
+          公開投稿が見つかりません。
         </p>
       </main>
     );
@@ -60,7 +61,7 @@ export default function PublicDetailPageV2({ id }: PublicDetailPageV2Props) {
             onClick={handleJoin}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            グループに入る
+            Roomを開く
           </button>
         </div>
       </header>

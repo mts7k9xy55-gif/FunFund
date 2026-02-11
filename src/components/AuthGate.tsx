@@ -1,8 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { useUser } from "@clerk/nextjs";
-import Link from "next/link";
+import { SignInButton, SignUpButton, useUser } from "@clerk/nextjs";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { user, isLoaded } = useUser();
@@ -24,18 +23,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
             建設的な議論と意思決定、そして支援実行はログイン後に利用できます。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/sign-in"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-            >
-              ログイン
-            </Link>
-            <Link
-              href="/sign-up"
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              新規登録
-            </Link>
+            <SignInButton mode="modal">
+              <button className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
+                ログイン
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                新規登録
+              </button>
+            </SignUpButton>
           </div>
         </div>
       </div>

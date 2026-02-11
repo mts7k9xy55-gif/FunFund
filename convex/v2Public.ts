@@ -32,58 +32,26 @@ function summarizeLegacyProject(source: {
 export const listPublicCatalog = query({
   args: {},
   handler: async (ctx) => {
-    const seeded = await ctx.db
+    const published = await ctx.db
       .query("publicProjectsV2")
       .withIndex("by_visibility", (q) => q.eq("visibility", "public"))
       .collect();
 
-    if (seeded.length > 0) {
-      return seeded
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .map((row) => ({
-          id: row.sourceItemId ?? row._id,
-          title: row.title,
-          description: row.description,
-          thumbnailUrl: row.thumbnailUrl,
-          weightedScore: row.weightedScore,
-          evaluationCount: row.evaluationCount,
-          currentAmount: row.currentAmount,
-          goalAmount: row.goalAmount,
-          daysRemaining: row.daysRemaining,
-          createdAt: row.createdAt,
-        }));
-    }
-
-    const rootItems = await ctx.db
-      .query("items")
-      .withIndex("by_parent", (q) => q.eq("parentId", undefined))
-      .collect();
-
-    const publicItems = rootItems.filter((item) => (item.visibility ?? "public") === "public");
-
-    const previews = await Promise.all(
-      publicItems.map(async (item) => {
-        const preview = await ctx.db
-          .query("publicPreviews")
-          .withIndex("by_item", (q) => q.eq("itemId", item._id))
-          .first();
-
-        return {
-          id: item._id,
-          title: item.content?.substring(0, 100) ?? "",
-          description: preview?.description ?? item.content?.substring(0, 200) ?? "",
-          thumbnailUrl: preview?.thumbnailUrl,
-          weightedScore: 0,
-          evaluationCount: 0,
-          currentAmount: 0,
-          goalAmount: 0,
-          daysRemaining: 30,
-          createdAt: item.createdAt,
-        };
-      })
-    );
-
-    return previews.sort((a, b) => b.createdAt - a.createdAt);
+    return published
+      .filter((row) => !!row.sourceItemId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((row) => ({
+        id: row.sourceItemId!,
+        title: row.title,
+        description: row.description,
+        thumbnailUrl: row.thumbnailUrl,
+        weightedScore: row.weightedScore,
+        evaluationCount: row.evaluationCount,
+        currentAmount: row.currentAmount,
+        goalAmount: row.goalAmount,
+        daysRemaining: row.daysRemaining,
+        createdAt: row.createdAt,
+      }));
   },
 });
 
@@ -97,48 +65,24 @@ export const getPublicProject = query({
       .withIndex("by_sourceItemId", (q) => q.eq("sourceItemId", args.itemId))
       .first();
 
-    if (v2) {
-      return {
-        id: args.itemId,
-        title: v2.title,
-        description: v2.description,
-        thumbnailUrl: v2.thumbnailUrl,
-        decisions: v2.decisions,
-        suitableFor: v2.suitableFor,
-        notSuitableFor: v2.notSuitableFor,
-        weightedScore: v2.weightedScore,
-        evaluationCount: v2.evaluationCount,
-        currentAmount: v2.currentAmount,
-        goalAmount: v2.goalAmount,
-        daysRemaining: v2.daysRemaining,
-        createdAt: v2.createdAt,
-      };
-    }
-
-    const item = await ctx.db.get(args.itemId);
-    if (!item || (item.visibility ?? "public") !== "public") {
+    if (!v2) {
       return null;
     }
 
-    const preview = await ctx.db
-      .query("publicPreviews")
-      .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
-      .first();
-
     return {
-      id: item._id,
-      title: item.content?.substring(0, 100) ?? "",
-      description: preview?.description ?? item.content ?? "",
-      thumbnailUrl: preview?.thumbnailUrl,
-      decisions: preview?.decisions ?? [],
-      suitableFor: preview?.suitableFor,
-      notSuitableFor: preview?.notSuitableFor,
-      weightedScore: 0,
-      evaluationCount: 0,
-      currentAmount: 0,
-      goalAmount: 0,
-      daysRemaining: 30,
-      createdAt: item.createdAt,
+      id: args.itemId,
+      title: v2.title,
+      description: v2.description,
+      thumbnailUrl: v2.thumbnailUrl,
+      decisions: v2.decisions,
+      suitableFor: v2.suitableFor,
+      notSuitableFor: v2.notSuitableFor,
+      weightedScore: v2.weightedScore,
+      evaluationCount: v2.evaluationCount,
+      currentAmount: v2.currentAmount,
+      goalAmount: v2.goalAmount,
+      daysRemaining: v2.daysRemaining,
+      createdAt: v2.createdAt,
     };
   },
 });
