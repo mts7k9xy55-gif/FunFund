@@ -55,6 +55,8 @@ export default function RoomPageV2() {
   const [payoutMethod, setPayoutMethod] = useState<"stripe_connect" | "bank_account">(
     "bank_account"
   );
+  const [payoutRecipientUserId, setPayoutRecipientUserId] = useState<Id<"users"> | "">("");
+  const [payoutNote, setPayoutNote] = useState("");
   const [bankNameInput, setBankNameInput] = useState("");
   const [bankLast4Input, setBankLast4Input] = useState("");
   const [workingAction, setWorkingAction] = useState<string | null>(null);
@@ -118,6 +120,7 @@ export default function RoomPageV2() {
   const payoutAccounts = myPayoutAccounts ?? [];
   const missingPayoutRows = membersMissingPayout ?? [];
   const payoutLedgerRows = roomPayoutLedger ?? [];
+  const [accountCopiedMessage, setAccountCopiedMessage] = useState<string | null>(null);
 
   const handleApplyWeightOverride = async () => {
     if (!effectiveRoomId || !overrideUserId) {
@@ -233,16 +236,34 @@ export default function RoomPageV2() {
     try {
       await postJson("/api/payouts/request", {
         roomId: effectiveRoomId,
+        recipientUserId: payoutRecipientUserId || undefined,
         amount,
         method: payoutMethod,
+        note: payoutNote.trim() || undefined,
       });
       setPayoutMessage("送金リクエストを登録しました");
+      setPayoutNote("");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "送金リクエストに失敗しました";
       setPayoutMessage(message);
     } finally {
       setWorkingAction(null);
+    }
+  };
+
+  const handleCopyAccountInfo = async (value: string) => {
+    if (!navigator?.clipboard) {
+      setAccountCopiedMessage("このブラウザではコピー機能を使用できません");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      setAccountCopiedMessage("口座情報をコピーしました");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "コピーに失敗しました";
+      setAccountCopiedMessage(message);
     }
   };
 
@@ -663,7 +684,61 @@ export default function RoomPageV2() {
                   </div>
 
                   <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                    <p className="text-xs font-semibold text-slate-700">登録済みの受取口座</p>
+                    {payoutAccounts.length === 0 ? (
+                      <p className="text-xs text-slate-500">受取口座はまだ登録されていません</p>
+                    ) : (
+                      payoutAccounts.map((account) => {
+                        const label =
+                          account.method === "bank_account"
+                            ? `${account.bankName ?? "銀行"} / ****${account.accountLast4 ?? "----"}`
+                            : `Stripe Connect / ${account.externalRef ?? "未連携"}`;
+                        return (
+                          <div
+                            key={account._id}
+                            className="rounded border border-slate-200 bg-slate-50 p-2"
+                          >
+                            <p className="text-xs font-medium text-slate-700">{label}</p>
+                            <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                              <span>{account.status}</span>
+                              {account.isDefault ? (
+                                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700">
+                                  default
+                                </span>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyAccountInfo(label)}
+                                className="ml-auto rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
+                              >
+                                コピー
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    {accountCopiedMessage ? (
+                      <p className="text-[11px] text-slate-500">{accountCopiedMessage}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-2 rounded-lg border border-slate-200 p-3">
                     <p className="text-xs font-semibold text-slate-700">送金リクエスト</p>
+                    <select
+                      value={payoutRecipientUserId}
+                      onChange={(event) =>
+                        setPayoutRecipientUserId(event.target.value as Id<"users"> | "")
+                      }
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    >
+                      <option value="">自分宛て</option>
+                      {roomMembersRows.map((member) => (
+                        <option key={member._id} value={member.userId}>
+                          {member.userName} ({member.role})
+                        </option>
+                      ))}
+                    </select>
                     <input
                       value={payoutAmount}
                       onChange={(event) => setPayoutAmount(event.target.value)}
@@ -680,6 +755,12 @@ export default function RoomPageV2() {
                       <option value="bank_account">bank_account</option>
                       <option value="stripe_connect">stripe_connect</option>
                     </select>
+                    <input
+                      value={payoutNote}
+                      onChange={(event) => setPayoutNote(event.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      placeholder="メモ（任意）"
+                    />
                     <button
                       type="button"
                       disabled={workingAction === "payout_request"}

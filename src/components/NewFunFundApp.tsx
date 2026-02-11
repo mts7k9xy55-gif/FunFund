@@ -235,6 +235,20 @@ export default function NewFunFundApp() {
                               {language === "ja" ? "作成者" : "Created by"}:{" "}
                               {threadUser?.name ?? "Unknown"}
                             </p>
+                            <div className="mb-2 flex justify-end">
+                              <button
+                                type="button"
+                                disabled={!isRoomActive}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedThreadId(thread._id);
+                                  setIsDecisionModalOpen(true);
+                                }}
+                                className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-fg transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {language === "ja" ? "判断を記録" : "Record decision"}
+                              </button>
+                            </div>
                             {selectedThreadId === thread._id && showLayerInputs && (
                               <div className="mt-4">
                                 <LayerInputs
