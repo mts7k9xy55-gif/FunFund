@@ -5,6 +5,25 @@ import { QueryCtx, MutationCtx } from "./_generated/server";
 import { Id, Doc } from "./_generated/dataModel";
 
 /**
+ * 認証IDに紐づくユーザーを取得（存在しない場合はnull）
+ */
+export async function getUserOrNull(
+  ctx: QueryCtx | MutationCtx
+): Promise<Doc<"users"> | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    return null;
+  }
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+    .first();
+
+  return user ?? null;
+}
+
+/**
  * 認証済みユーザーを取得（全mutation/queryで使用）
  * QueryCtxの場合はユーザーが存在しないとエラー
  * MutationCtxの場合はユーザーが存在しないと作成を試みる
@@ -15,10 +34,7 @@ export async function requireUser(ctx: QueryCtx | MutationCtx): Promise<Doc<"use
     throw new Error("Unauthorized: ログインが必要です");
   }
 
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
-    .first();
+  const user = await getUserOrNull(ctx);
 
   if (!user) {
     // MutationCtxの場合のみユーザー作成を試みる

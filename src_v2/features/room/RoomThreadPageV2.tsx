@@ -94,6 +94,7 @@ function renderBodyWithLinks(body: string) {
 export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2Props) {
   const { user } = useUser();
   const router = useRouter();
+  const [isUserReady, setIsUserReady] = useState(false);
 
   const roomIdAsId = roomId as Id<"rooms">;
   const threadIdAsId = threadId as Id<"threads">;
@@ -109,11 +110,21 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const deleteIntent = useMutation(api.intents.deleteIntent);
   const finalizeDecision = useMutation(api.finalDecisions.finalizeDecision);
 
-  const selectedRoom = useQuery(api.rooms.getRoom, { roomId: roomIdAsId });
-  const threadDetail = useQuery(api.threads.getThread, { threadId: threadIdAsId });
-  const intents = useQuery(api.intents.listIntents, { threadId: threadIdAsId }) ?? [];
+  const selectedRoom = useQuery(
+    api.rooms.getRoom,
+    isUserReady ? { roomId: roomIdAsId } : "skip"
+  );
+  const threadDetail = useQuery(
+    api.threads.getThread,
+    isUserReady ? { threadId: threadIdAsId } : "skip"
+  );
+  const intents =
+    useQuery(api.intents.listIntents, isUserReady ? { threadId: threadIdAsId } : "skip") ?? [];
   const finalDecisions =
-    useQuery(api.finalDecisions.listFinalDecisions, { threadId: threadIdAsId }) ?? [];
+    useQuery(
+      api.finalDecisions.listFinalDecisions,
+      isUserReady ? { threadId: threadIdAsId } : "skip"
+    ) ?? [];
   const usersQuery = useQuery(api.users.listUsers);
   const users = useMemo(() => usersQuery ?? [], [usersQuery]);
 
@@ -135,12 +146,32 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const [uiFeedback, setUiFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
-    createUserMutation({
-      userId: user.id,
-      name: user.fullName ?? user.firstName ?? undefined,
-      role: "human",
-    }).catch(() => {});
+    let cancelled = false;
+    if (!user?.id) {
+      setIsUserReady(false);
+      return;
+    }
+
+    const ensureUser = async () => {
+      try {
+        await createUserMutation({
+          userId: user.id,
+          name: user.fullName ?? user.firstName ?? undefined,
+          role: "human",
+        });
+      } catch {
+        // 失敗時もUIクラッシュを避けるため読み込みは進める
+      } finally {
+        if (!cancelled) {
+          setIsUserReady(true);
+        }
+      }
+    };
+
+    void ensureUser();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, user?.fullName, user?.firstName, createUserMutation]);
 
   const currentConvexUser = users.find((row) => row.userId === user?.id);
@@ -178,7 +209,8 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const canWriteToThread = Boolean(
     isActiveRoom && selectedRoom?.myRole !== "viewer" && !selectedThread?.archivedAt
   );
-  const isLoading = selectedRoom === undefined || threadDetail === undefined;
+  const isLoading =
+    !isUserReady || selectedRoom === undefined || threadDetail === undefined;
   const isMissing = selectedRoom === null || threadDetail === null;
   const isRoomThreadMismatch = Boolean(
     selectedRoom && selectedThread && selectedThread.roomId !== selectedRoom._id

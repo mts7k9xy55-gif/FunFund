@@ -3,7 +3,12 @@
 
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { requireUser, requireOwnerPermission, requireRoomMember } from "./_guards";
+import {
+  getUserOrNull,
+  requireUser,
+  requireOwnerPermission,
+  requireRoomMember,
+} from "./_guards";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -154,7 +159,10 @@ export const updateMemberRole = mutation({
 export const listRoomsForMe = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireUser(ctx);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return [];
+    }
 
     const memberships = await ctx.db
       .query("roomMembers")
@@ -184,7 +192,10 @@ export const getRoom = query({
     roomId: v.id("rooms"),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return null;
+    }
     const room = await ctx.db.get(args.roomId);
 
     if (!room) {
@@ -218,8 +229,15 @@ export const listRoomMembers = query({
     roomId: v.id("rooms"),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
-    await requireRoomMember(ctx, args.roomId, user._id);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return [];
+    }
+    try {
+      await requireRoomMember(ctx, args.roomId, user._id);
+    } catch {
+      return [];
+    }
 
     const memberships = await ctx.db
       .query("roomMembers")

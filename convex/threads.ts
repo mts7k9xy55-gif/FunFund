@@ -4,6 +4,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
+  getUserOrNull,
   requireOwnerPermission,
   requireReason,
   requireUser,
@@ -183,7 +184,10 @@ export const listThreads = query({
     roomId: v.id("rooms"),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return [];
+    }
 
     // メンバーかチェック
     const memberships = await ctx.db
@@ -194,7 +198,7 @@ export const listThreads = query({
     const membership = memberships.find((m) => m.userId === user._id);
 
     if (!membership) {
-      return null;
+      return [];
     }
 
     const threads = await ctx.db
@@ -214,7 +218,10 @@ export const getThread = query({
     threadId: v.id("threads"),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return null;
+    }
     const thread = await ctx.db.get(args.threadId);
 
     if (!thread) {
@@ -230,7 +237,7 @@ export const getThread = query({
     const membership = memberships.find((m) => m.userId === user._id);
 
     if (!membership) {
-      throw new Error("You are not a member of this room");
+      return null;
     }
 
     // 判断一覧

@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireRoomMember, requireUser, requireWritePermission } from "./_guards";
+import {
+  getUserOrNull,
+  requireRoomMember,
+  requireUser,
+  requireWritePermission,
+} from "./_guards";
 
 function normalizeOptionalReason(reason: string | undefined): string | undefined {
   const trimmed = reason?.trim();
@@ -51,13 +56,25 @@ export const listIntents = query({
     threadId: v.id("threads"),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return [];
+    }
     const thread = await ctx.db.get(args.threadId);
     if (!thread) {
       return [];
     }
 
-    const membership = await requireRoomMember(ctx, thread.roomId, user._id);
+    const membership = await (async () => {
+      try {
+        return await requireRoomMember(ctx, thread.roomId, user._id);
+      } catch {
+        return null;
+      }
+    })();
+    if (!membership) {
+      return [];
+    }
 
     const intents = await ctx.db
       .query("intents")

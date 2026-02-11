@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOwnerPermission, requireRoomMember, requireUser } from "./_guards";
+import {
+  getUserOrNull,
+  requireOwnerPermission,
+  requireRoomMember,
+  requireUser,
+} from "./_guards";
 
 export const finalizeDecision = mutation({
   args: {
@@ -52,13 +57,25 @@ export const listFinalDecisions = query({
     threadId: v.id("threads"),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return [];
+    }
     const thread = await ctx.db.get(args.threadId);
     if (!thread) {
       return [];
     }
 
-    await requireRoomMember(ctx, thread.roomId, user._id);
+    const membership = await (async () => {
+      try {
+        return await requireRoomMember(ctx, thread.roomId, user._id);
+      } catch {
+        return null;
+      }
+    })();
+    if (!membership) {
+      return [];
+    }
 
     const decisions = await ctx.db
       .query("finalDecisions")

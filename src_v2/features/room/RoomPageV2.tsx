@@ -22,8 +22,9 @@ function getBankAccountTypeLabel(accountType?: BankAccountType) {
 
 export default function RoomPageV2() {
   const { user } = useUser();
+  const [isUserReady, setIsUserReady] = useState(false);
 
-  const roomsQuery = useQuery(api.rooms.listRoomsForMe);
+  const roomsQuery = useQuery(api.rooms.listRoomsForMe, isUserReady ? {} : "skip");
   const rooms = useMemo(() => roomsQuery ?? [], [roomsQuery]);
 
   const createUserMutation = useMutation(api.users.createUser);
@@ -64,12 +65,32 @@ export default function RoomPageV2() {
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
-    createUserMutation({
-      userId: user.id,
-      name: user.fullName ?? user.firstName ?? undefined,
-      role: "human",
-    }).catch(() => {});
+    let cancelled = false;
+    if (!user?.id) {
+      setIsUserReady(false);
+      return;
+    }
+
+    const ensureUser = async () => {
+      try {
+        await createUserMutation({
+          userId: user.id,
+          name: user.fullName ?? user.firstName ?? undefined,
+          role: "human",
+        });
+      } catch {
+        // 失敗時もUIクラッシュを避けるため読み込みは進める
+      } finally {
+        if (!cancelled) {
+          setIsUserReady(true);
+        }
+      }
+    };
+
+    void ensureUser();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, user?.fullName, user?.firstName, createUserMutation]);
 
   const effectiveRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
@@ -80,22 +101,37 @@ export default function RoomPageV2() {
 
   const roomThreadsQuery = useQuery(
     api.threads.listThreads,
-    effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+    isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
   );
   const roomThreads = useMemo(() => roomThreadsQuery ?? [], [roomThreadsQuery]);
 
   const roomMembers =
-    useQuery(api.rooms.listRoomMembers, effectiveRoomId ? { roomId: effectiveRoomId } : "skip") ??
+    useQuery(
+      api.rooms.listRoomMembers,
+      isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+    ) ??
     [];
 
-  const myPayoutAccounts = useQuery(api.payouts.listMyPayoutAccounts, {}) ?? [];
+  const myPayoutAccounts = useQuery(
+    api.payouts.listMyPayoutAccounts,
+    isUserReady ? {} : "skip"
+  ) ?? [];
   const membersMissingPayout =
-    useQuery(api.payouts.listMembersMissingPayoutMethod, effectiveRoomId ? { roomId: effectiveRoomId } : "skip") ??
+    useQuery(
+      api.payouts.listMembersMissingPayoutMethod,
+      isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+    ) ??
     [];
   const roomPayoutLedger =
-    useQuery(api.payouts.listRoomPayoutLedger, effectiveRoomId ? { roomId: effectiveRoomId } : "skip") ?? [];
+    useQuery(
+      api.payouts.listRoomPayoutLedger,
+      isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+    ) ?? [];
   const roomPayoutDestinations =
-    useQuery(api.payouts.listRoomPayoutDestinations, effectiveRoomId ? { roomId: effectiveRoomId } : "skip") ?? [];
+    useQuery(
+      api.payouts.listRoomPayoutDestinations,
+      isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
+    ) ?? [];
 
   const isActiveRoom = selectedRoom?.status === "active";
 
@@ -443,7 +479,11 @@ export default function RoomPageV2() {
       </header>
 
       <main className="mx-auto w-full max-w-[1700px] px-4 py-8 md:px-6">
-        {!effectiveRoomId || !selectedRoom ? (
+        {!isUserReady ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-600">
+            読み込み中...
+          </div>
+        ) : !effectiveRoomId || !selectedRoom ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-600">
             Roomを作成するか、既存のRoomを選択してください。
           </div>
