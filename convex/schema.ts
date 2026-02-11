@@ -130,6 +130,8 @@ export default defineSchema({
     title: v.optional(v.string()),
     createdBy: v.id("users"),
     createdAt: v.number(),
+    archivedAt: v.optional(v.number()),
+    archivedBy: v.optional(v.id("users")),
   })
     .index("by_room", ["roomId"])
     .index("by_createdBy", ["createdBy"]),

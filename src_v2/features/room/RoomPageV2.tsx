@@ -27,6 +27,8 @@ export default function RoomPageV2() {
   const postComment = useMutation(api.messages.postComment);
   const setMessageHidden = useMutation(api.messages.setMessageHidden);
   const deleteMessage = useMutation(api.messages.deleteMessage);
+  const setThreadArchived = useMutation(api.threads.setThreadArchived);
+  const deleteThread = useMutation(api.threads.deleteThread);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<Id<"threads"> | null>(null);
@@ -41,6 +43,8 @@ export default function RoomPageV2() {
   const [replyBody, setReplyBody] = useState("");
   const [postingReply, setPostingReply] = useState(false);
   const [messageActionId, setMessageActionId] = useState<Id<"messages"> | null>(null);
+  const [showArchivedThreads, setShowArchivedThreads] = useState(false);
+  const [threadActionId, setThreadActionId] = useState<Id<"threads"> | null>(null);
 
   const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
   const [payoutAmount, setPayoutAmount] = useState("1000");
@@ -82,6 +86,14 @@ export default function RoomPageV2() {
   }, [roomThreads, selectedThreadId]);
 
   const selectedThread = roomThreads.find((thread) => thread._id === selectedThreadId) ?? null;
+  const activeThreads = useMemo(
+    () => roomThreads.filter((thread) => !thread.archivedAt),
+    [roomThreads]
+  );
+  const archivedThreads = useMemo(
+    () => roomThreads.filter((thread) => Boolean(thread.archivedAt)),
+    [roomThreads]
+  );
 
   const threadDetail = useQuery(
     api.threads.getThread,
@@ -267,6 +279,47 @@ export default function RoomPageV2() {
     }
   };
 
+  const handleSetThreadArchived = async (threadId: Id<"threads">, archived: boolean) => {
+    if (selectedRoom?.myRole !== "owner") {
+      setDecisionFeedback("オーナーのみスレッドを操作できます");
+      return;
+    }
+    setThreadActionId(threadId);
+    try {
+      await setThreadArchived({ threadId, archived });
+      if (archived && selectedThreadId === threadId) {
+        setSelectedThreadId(null);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "スレッド更新に失敗しました";
+      setDecisionFeedback(message);
+    } finally {
+      setThreadActionId(null);
+    }
+  };
+
+  const handleDeleteThread = async (threadId: Id<"threads">) => {
+    if (selectedRoom?.myRole !== "owner") {
+      setDecisionFeedback("オーナーのみスレッドを削除できます");
+      return;
+    }
+    const confirmed = window.confirm("このスレッドを削除します。元に戻せません。");
+    if (!confirmed) return;
+
+    setThreadActionId(threadId);
+    try {
+      await deleteThread({ threadId });
+      if (selectedThreadId === threadId) {
+        setSelectedThreadId(null);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "スレッド削除に失敗しました";
+      setDecisionFeedback(message);
+    } finally {
+      setThreadActionId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -294,6 +347,88 @@ export default function RoomPageV2() {
             {!isActiveRoom ? (
               <PaywallBanner roomStatus={selectedRoom.status} roomId={selectedRoom._id} language="ja" />
             ) : null}
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">今ある課題を解決すること</h2>
+                  <p className="text-xs text-slate-500">
+                    まず課題スレッドを選び、返信を集めてから判断を入れる。
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">
+                    課題 {activeThreads.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowArchivedThreads((prev) => !prev)}
+                    className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    {showArchivedThreads
+                      ? `アーカイブを隠す (${archivedThreads.length})`
+                      : `アーカイブ (${archivedThreads.length})`}
+                  </button>
+                </div>
+              </div>
+
+              {activeThreads.length === 0 ? (
+                <p className="text-sm text-slate-500">未解決の課題スレッドはありません。</p>
+              ) : (
+                <div className="space-y-2">
+                  {activeThreads.map((thread) => (
+                    <button
+                      key={thread._id}
+                      type="button"
+                      onClick={() => setSelectedThreadId(thread._id)}
+                      className={`w-full rounded-lg border px-3 py-3 text-left text-sm transition ${
+                        selectedThreadId === thread._id
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">
+                            {thread.title ?? "Untitled"}
+                          </p>
+                          <p className="text-xs text-slate-500">{thread.type}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {showArchivedThreads ? (
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <p className="mb-2 text-xs font-semibold text-slate-700">アーカイブ（達成記録）</p>
+                  {archivedThreads.length === 0 ? (
+                    <p className="text-sm text-slate-500">アーカイブ済みスレッドはありません。</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {archivedThreads.map((thread) => (
+                        <button
+                          key={thread._id}
+                          type="button"
+                          onClick={() => setSelectedThreadId(thread._id)}
+                          className={`w-full rounded-lg border px-3 py-3 text-left text-sm transition ${
+                            selectedThreadId === thread._id
+                              ? "border-emerald-600 bg-emerald-50"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <p className="truncate font-semibold text-slate-900">
+                            {thread.title ?? "Untitled"}
+                          </p>
+                          <p className="text-xs text-slate-500">archived</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </section>
 
             <section className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_400px]">
               <div className="space-y-6">
@@ -369,16 +504,43 @@ export default function RoomPageV2() {
                         <h2 className="text-xl font-bold text-slate-900">{selectedThread.title ?? "Untitled"}</h2>
                         <p className="text-xs text-slate-500">種別: {selectedThread.type}</p>
                       </div>
-                      {isDecisionV2Enabled() ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsDecisionModalOpen(true)}
-                          disabled={!isActiveRoom}
-                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          判断を追加
-                        </button>
-                      ) : null}
+                      <div className="flex items-center gap-2">
+                        {isDecisionV2Enabled() ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsDecisionModalOpen(true)}
+                            disabled={!isActiveRoom}
+                            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            判断を追加
+                          </button>
+                        ) : null}
+                        {selectedRoom.myRole === "owner" ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={threadActionId === selectedThread._id}
+                              onClick={() =>
+                                handleSetThreadArchived(
+                                  selectedThread._id,
+                                  !Boolean(selectedThread.archivedAt)
+                                )
+                              }
+                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                            >
+                              {selectedThread.archivedAt ? "アーカイブ解除" : "アーカイブ"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={threadActionId === selectedThread._id}
+                              onClick={() => handleDeleteThread(selectedThread._id)}
+                              className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                            >
+                              スレッド削除
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="space-y-3">
@@ -611,40 +773,13 @@ export default function RoomPageV2() {
 
               <aside className="space-y-6 xl:sticky xl:top-24 self-start">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-base font-bold text-slate-900">進行ガイド（提案）</h3>
-                  <ol className="mt-3 space-y-2 text-sm text-slate-700">
-                    <li>1. 先にスレッドを1件作成して論点を固定する</li>
-                    <li>2. 返信で懸念と条件を出し切る</li>
-                    <li>3. 最後に判断（評価 + 理由）を入れて締める</li>
-                  </ol>
-                </section>
-
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900">スレッド一覧</h3>
-                    <span className="text-xs text-slate-500">{roomThreads.length} 件</span>
-                  </div>
-                  {roomThreads.length === 0 ? (
-                    <p className="text-sm text-slate-500">まだスレッドがありません。</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {roomThreads.map((thread) => (
-                        <button
-                          key={thread._id}
-                          type="button"
-                          onClick={() => setSelectedThreadId(thread._id)}
-                          className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                            selectedThreadId === thread._id
-                              ? "border-blue-600 bg-blue-50"
-                              : "border-slate-200 bg-white hover:border-slate-300"
-                          }`}
-                        >
-                          <p className="truncate font-semibold text-slate-900">{thread.title ?? "Untitled"}</p>
-                          <p className="text-xs text-slate-500">{thread.type}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <h3 className="text-base font-bold text-slate-900">リード提案</h3>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                    <li>・議論順: 返信で条件を出し切ってから判断を入力</li>
+                    <li>・アーカイブ: 合意済みのみ移動して成長記録として残す</li>
+                    <li>・削除: ownerだけに限定（監査性を維持）</li>
+                    <li>・送信者変更: デフォルトOFF推奨（なりすまし/監査コスト増）</li>
+                  </ul>
                 </section>
               </aside>
             </section>

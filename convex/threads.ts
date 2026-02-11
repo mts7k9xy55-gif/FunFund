@@ -3,7 +3,12 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUser, requireWritePermission, requireReason } from "./_guards";
+import {
+  requireOwnerPermission,
+  requireReason,
+  requireUser,
+  requireWritePermission,
+} from "./_guards";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -66,6 +71,107 @@ export const createThread = mutation({
     }
 
     return threadId;
+  },
+});
+
+/**
+ * Threadをアーカイブ/解除（ownerのみ）
+ */
+export const setThreadArchived = mutation({
+  args: {
+    threadId: v.id("threads"),
+    archived: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const thread = await ctx.db.get(args.threadId);
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    await requireOwnerPermission(ctx, thread.roomId, user._id);
+
+    await ctx.db.patch(args.threadId, {
+      archivedAt: args.archived ? Date.now() : undefined,
+      archivedBy: args.archived ? user._id : undefined,
+    });
+
+    return args.threadId;
+  },
+});
+
+/**
+ * Threadを削除（ownerのみ）
+ */
+export const deleteThread = mutation({
+  args: {
+    threadId: v.id("threads"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const thread = await ctx.db.get(args.threadId);
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    await requireOwnerPermission(ctx, thread.roomId, user._id);
+
+    const [messages, decisions, executions, layerInputs, evaluations, proposals] =
+      await Promise.all([
+        ctx.db
+          .query("messages")
+          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+        ctx.db
+          .query("decisions")
+          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+        ctx.db
+          .query("executions")
+          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+        ctx.db
+          .query("layerInputs")
+          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+        ctx.db
+          .query("evaluations")
+          .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+        ctx.db
+          .query("distributionProposals")
+          .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+      ]);
+
+    for (const proposal of proposals) {
+      const payoutRows = await ctx.db
+        .query("payoutLedger")
+        .withIndex("by_distributionProposalId", (q) =>
+          q.eq("distributionProposalId", proposal._id)
+        )
+        .collect();
+      await Promise.all(
+        payoutRows.map((row) =>
+          ctx.db.patch(row._id, {
+            distributionProposalId: undefined,
+            updatedAt: Date.now(),
+          })
+        )
+      );
+    }
+
+    await Promise.all([
+      ...messages.map((row) => ctx.db.delete(row._id)),
+      ...decisions.map((row) => ctx.db.delete(row._id)),
+      ...executions.map((row) => ctx.db.delete(row._id)),
+      ...layerInputs.map((row) => ctx.db.delete(row._id)),
+      ...evaluations.map((row) => ctx.db.delete(row._id)),
+      ...proposals.map((row) => ctx.db.delete(row._id)),
+    ]);
+
+    await ctx.db.delete(args.threadId);
+    return args.threadId;
   },
 });
 
