@@ -386,6 +386,64 @@ export const updateRoomEvaluationMode = mutation({
 });
 
 /**
+ * Roomを削除（ownerのみ）
+ */
+export const deleteRoom = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    await requireOwnerPermission(ctx, args.roomId, user._id);
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    const [
+      memberships,
+      threads,
+      messages,
+      decisions,
+      layerInputs,
+      evaluations,
+      executions,
+      weightOverrides,
+      distributionProposals,
+      payoutLedgerRows,
+    ] = await Promise.all([
+      ctx.db.query("roomMembers").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("threads").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("messages").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("decisions").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("layerInputs").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("evaluations").withIndex("by_roomId", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("executions").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("roomWeightOverrides").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("distributionProposals").withIndex("by_roomId", (q) => q.eq("roomId", args.roomId)).collect(),
+      ctx.db.query("payoutLedger").withIndex("by_roomId", (q) => q.eq("roomId", args.roomId)).collect(),
+    ]);
+
+    await Promise.all([
+      ...memberships.map((row) => ctx.db.delete(row._id)),
+      ...threads.map((row) => ctx.db.delete(row._id)),
+      ...messages.map((row) => ctx.db.delete(row._id)),
+      ...decisions.map((row) => ctx.db.delete(row._id)),
+      ...layerInputs.map((row) => ctx.db.delete(row._id)),
+      ...evaluations.map((row) => ctx.db.delete(row._id)),
+      ...executions.map((row) => ctx.db.delete(row._id)),
+      ...weightOverrides.map((row) => ctx.db.delete(row._id)),
+      ...distributionProposals.map((row) => ctx.db.delete(row._id)),
+      ...payoutLedgerRows.map((row) => ctx.db.delete(row._id)),
+    ]);
+
+    await ctx.db.delete(args.roomId);
+    return args.roomId;
+  },
+});
+
+/**
  * Roomの仮想Fund残高を取得
  */
 export const getRoomVirtualFundBalance = query({

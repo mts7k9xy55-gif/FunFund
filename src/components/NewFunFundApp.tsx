@@ -21,7 +21,6 @@ import RoomSelector from "./room/RoomSelector";
 import PaywallBanner from "./room/PaywallBanner";
 import DecisionModal from "./room/DecisionModal";
 import LayerInputs from "./layer/LayerInputs";
-import Dashboard from "./dashboard/Dashboard";
 import JoinRoomModal from "./room/JoinRoomModal";
 
 type Language = "ja" | "en";
@@ -185,19 +184,12 @@ export default function NewFunFundApp() {
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex-1 overflow-y-auto pb-24">
-          <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="max-w-7xl mx-auto px-4 py-6">
             {/* 未認証時は誰もいない（スレッドを表示しない） */}
             <SignedIn>
               {selectedRoomId ? (
                 // Room選択時: ダッシュボードとthreadsを表示
                 <div className="space-y-6">
-                  {/* ダッシュボード */}
-                  <Dashboard
-                    roomId={selectedRoomId}
-                    threadId={selectedThreadId ?? undefined}
-                    language={language}
-                  />
-
                   {/* Threads一覧 */}
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold text-foreground">

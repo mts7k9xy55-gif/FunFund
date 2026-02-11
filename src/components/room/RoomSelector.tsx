@@ -23,8 +23,11 @@ export default function RoomSelector({
   onCreateRoom,
 }: RoomSelectorProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const rooms = useQuery(api.rooms.listRoomsForMe) ?? [];
   const createRoom = useMutation(api.rooms.createRoom);
+  const deleteRoom = useMutation(api.rooms.deleteRoom);
+  const selectedRoom = rooms.find((room) => room._id === selectedRoomId);
 
   const handleCreateRoom = async (
     name: string,
@@ -47,6 +50,37 @@ export default function RoomSelector({
             ? "Room作成に失敗しました"
             : "Failed to create room")
       );
+    }
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!selectedRoom) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      language === "ja"
+        ? `Room「${selectedRoom.name}」を削除します。元に戻せません。続行しますか？`
+        : `Delete room "${selectedRoom.name}"? This cannot be undone.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteRoom({ roomId: selectedRoom._id });
+      const next = rooms.find((room) => room._id !== selectedRoom._id);
+      onSelectRoom(next?._id ?? null);
+    } catch (error: any) {
+      alert(
+        error.message ||
+          (language === "ja"
+            ? "Room削除に失敗しました"
+            : "Failed to delete room")
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -87,6 +121,21 @@ export default function RoomSelector({
           >
             {language === "ja" ? "+ 新規" : "+ New"}
           </button>
+          {selectedRoom?.myRole === "owner" ? (
+            <button
+              onClick={handleDeleteRoom}
+              disabled={isDeleting}
+              className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDeleting
+                ? language === "ja"
+                  ? "削除中..."
+                  : "Deleting..."
+                : language === "ja"
+                ? "削除"
+                : "Delete"}
+            </button>
+          ) : null}
         </div>
       )}
 
