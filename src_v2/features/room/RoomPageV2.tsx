@@ -109,6 +109,9 @@ export default function RoomPageV2() {
     api.decisions.listDecisions,
     selectedThreadId ? { threadId: selectedThreadId } : "skip"
   ) ?? [];
+  const threadMessages = threadDetail?.messages ?? [];
+  const reasonMessages = threadMessages.filter((message) => message.kind === "reason");
+  const replyMessages = threadMessages.filter((message) => message.kind !== "reason");
   const roomMembers = useQuery(
     api.rooms.listRoomMembers,
     effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
@@ -370,7 +373,7 @@ export default function RoomPageV2() {
                       }}
                       className="rounded-lg bg-blue-600 px-3 py-1.5 font-semibold text-white transition hover:bg-blue-700"
                     >
-                      {isThreadComposerOpen ? "起票フォームを閉じる" : "🔥 スレッドを起票"}
+                      {isThreadComposerOpen ? "スレッド作成を閉じる" : "＋ スレッドを作成"}
                     </button>
                     <span className="rounded bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
                       課題 {activeThreads.length}
@@ -453,8 +456,8 @@ export default function RoomPageV2() {
                   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-xl font-bold text-slate-900">新規スレッド</h2>
-                        <p className="text-sm text-slate-500">情熱のある人が起票して、判断に必要な情報を揃える。</p>
+                        <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
+                        <p className="text-sm text-slate-500">情熱のある人が作成して、判断に必要な情報を揃える。</p>
                       </div>
                       <button
                         type="button"
@@ -622,7 +625,7 @@ export default function RoomPageV2() {
                       }}
                       className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {creatingThread ? "起票中..." : "この内容で起票"}
+                      {creatingThread ? "作成中..." : "この内容で作成"}
                     </button>
                   </section>
                 ) : null}
@@ -674,11 +677,60 @@ export default function RoomPageV2() {
                     </div>
 
                     <div className="space-y-3">
+                      {reasonMessages.length > 0 ? (
+                        <>
+                          <h3 className="text-sm font-semibold text-slate-800">提案理由</h3>
+                          {reasonMessages.map((message) => (
+                            <div key={message._id} className="rounded-lg border border-slate-200 p-3">
+                              <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
+                                <span className="rounded bg-slate-100 px-2 py-0.5">
+                                  {formatMessageKind(message.kind)}
+                                </span>
+                                <span>{userNameById.get(message.createdBy) ?? "Unknown"}</span>
+                                {message.hiddenAt ? (
+                                  <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">
+                                    非表示
+                                  </span>
+                                ) : null}
+                                {canModerateMessage(message.createdBy) ? (
+                                  <div className="ml-auto flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={messageActionId === message._id}
+                                      onClick={() =>
+                                        handleToggleMessageHidden(
+                                          message._id,
+                                          !Boolean(message.hiddenAt)
+                                        )
+                                      }
+                                      className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                                    >
+                                      {message.hiddenAt ? "再表示" : "非表示"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={messageActionId === message._id}
+                                      onClick={() => handleDeleteMessage(message._id)}
+                                      className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                                    >
+                                      削除
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                              <p className="whitespace-pre-wrap text-sm text-slate-700">
+                                {message.hiddenAt ? "この返信は非表示になっています。" : message.body}
+                              </p>
+                            </div>
+                          ))}
+                        </>
+                      ) : null}
+
                       <h3 className="text-sm font-semibold text-slate-800">返信</h3>
-                      {(threadDetail?.messages ?? []).length === 0 ? (
+                      {replyMessages.length === 0 ? (
                         <p className="text-sm text-slate-500">まだ返信はありません。</p>
                       ) : (
-                        (threadDetail?.messages ?? []).map((message) => (
+                        replyMessages.map((message) => (
                           <div key={message._id} className="rounded-lg border border-slate-200 p-3">
                             <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
                               <span className="rounded bg-slate-100 px-2 py-0.5">
