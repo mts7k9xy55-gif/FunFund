@@ -10,6 +10,15 @@ import PaywallBanner from "@/components/room/PaywallBanner";
 import RoomSelector from "@/components/room/RoomSelector";
 import HomeScreenAddGuide from "@/components/room/HomeScreenAddGuide";
 import { isPayoutsV1Enabled } from "@/lib/featureFlags";
+import { BANK_OPTIONS, filterBankOptions, findBankOptionByCode } from "./bankOptions";
+
+type BankAccountType = "ordinary" | "checking" | "savings";
+
+function getBankAccountTypeLabel(accountType?: BankAccountType) {
+  if (accountType === "checking") return "当座";
+  if (accountType === "savings") return "貯蓄";
+  return "普通";
+}
 
 export default function RoomPageV2() {
   const { user } = useUser();
@@ -40,8 +49,16 @@ export default function RoomPageV2() {
   );
   const [payoutRecipientUserId, setPayoutRecipientUserId] = useState<Id<"users"> | "">("");
   const [payoutNote, setPayoutNote] = useState("");
+  const [bankSearchInput, setBankSearchInput] = useState("");
+  const [bankCodeInput, setBankCodeInput] = useState("");
   const [bankNameInput, setBankNameInput] = useState("");
-  const [bankLast4Input, setBankLast4Input] = useState("");
+  const [branchCodeInput, setBranchCodeInput] = useState("");
+  const [branchNameInput, setBranchNameInput] = useState("");
+  const [accountTypeInput, setAccountTypeInput] = useState<BankAccountType>("ordinary");
+  const [accountNumberInput, setAccountNumberInput] = useState("");
+  const [accountHolderNameInput, setAccountHolderNameInput] = useState("");
+  const [onlineBankingUrlInput, setOnlineBankingUrlInput] = useState("");
+  const [reportLedgerNote, setReportLedgerNote] = useState("");
   const [workingAction, setWorkingAction] = useState<string | null>(null);
   const [accountCopiedMessage, setAccountCopiedMessage] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
@@ -77,6 +94,8 @@ export default function RoomPageV2() {
     [];
   const roomPayoutLedger =
     useQuery(api.payouts.listRoomPayoutLedger, effectiveRoomId ? { roomId: effectiveRoomId } : "skip") ?? [];
+  const roomPayoutDestinations =
+    useQuery(api.payouts.listRoomPayoutDestinations, effectiveRoomId ? { roomId: effectiveRoomId } : "skip") ?? [];
 
   const isActiveRoom = selectedRoom?.status === "active";
 
@@ -88,6 +107,56 @@ export default function RoomPageV2() {
     () => roomThreads.filter((thread) => Boolean(thread.archivedAt)),
     [roomThreads]
   );
+  const bankCandidates = useMemo(
+    () => filterBankOptions(bankSearchInput).slice(0, 8),
+    [bankSearchInput]
+  );
+  const selectedRecipient = useMemo(() => {
+    if (!payoutRecipientUserId) return null;
+    return roomPayoutDestinations.find((row) => row.userId === payoutRecipientUserId) ?? null;
+  }, [payoutRecipientUserId, roomPayoutDestinations]);
+  const recipientBankAccount = selectedRecipient?.payoutAccount ?? null;
+  const recipientBankOption = findBankOptionByCode(recipientBankAccount?.bankCode);
+  const recipientOnlineBankingUrl =
+    recipientBankAccount?.onlineBankingUrl ?? recipientBankOption?.onlineBankingUrl ?? "";
+  const myBankAccountTemplates = useMemo(() => {
+    return myPayoutAccounts
+      .filter((account) => account.method === "bank_account")
+      .map((account) => {
+        const bankLabel =
+          account.bankCode && account.bankName
+            ? `${account.bankName} (${account.bankCode})`
+            : account.bankName ?? "銀行未設定";
+        const branchLabel =
+          account.branchName || account.branchCode
+            ? `${account.branchName ?? "支店"}${account.branchCode ? ` (${account.branchCode})` : ""}`
+            : "支店未設定";
+        return {
+          id: account._id,
+          summary: `${bankLabel} / ${branchLabel} / ${getBankAccountTypeLabel(account.accountType)} / ****${account.accountLast4 ?? "----"}`,
+          template: [
+            `銀行名: ${account.bankName ?? ""}`,
+            `銀行コード: ${account.bankCode ?? ""}`,
+            `支店名: ${account.branchName ?? ""}`,
+            `支店コード: ${account.branchCode ?? ""}`,
+            `口座種別: ${getBankAccountTypeLabel(account.accountType)}`,
+            `口座番号: ${account.accountNumber ?? ""}`,
+            `口座名義(カナ): ${account.accountHolderName ?? ""}`,
+          ].join("\n"),
+        };
+      });
+  }, [myPayoutAccounts]);
+  const pendingLedgerForSelectedRecipient = useMemo(() => {
+    if (!selectedRecipient?.userId) return null;
+    const candidates = roomPayoutLedger
+      .filter(
+        (row) =>
+          row.recipientUserId === selectedRecipient.userId &&
+          (row.status === "pending" || row.status === "requires_method" || row.status === "ready")
+      )
+      .sort((a, b) => b.createdAt - a.createdAt);
+    return candidates[0] ?? null;
+  }, [roomPayoutLedger, selectedRecipient]);
 
   const postJson = async <T extends Record<string, unknown>>(
     path: string,
@@ -128,8 +197,17 @@ export default function RoomPageV2() {
   };
 
   const handleBankRegister = async () => {
-    if (!bankNameInput.trim() || bankLast4Input.trim().length !== 4) {
-      setPayoutMessage("銀行名と口座下4桁を入力してください");
+    const accountNumber = accountNumberInput.replace(/[^0-9]/g, "");
+    if (!bankNameInput.trim() || accountNumber.length < 4 || accountNumber.length > 8) {
+      setPayoutMessage("銀行名と口座番号（4〜8桁）を入力してください");
+      return;
+    }
+    if (bankCodeInput && !/^[0-9]{4}$/.test(bankCodeInput)) {
+      setPayoutMessage("銀行コードは4桁で入力してください");
+      return;
+    }
+    if (branchCodeInput && !/^[0-9]{3}$/.test(branchCodeInput)) {
+      setPayoutMessage("支店コードは3桁で入力してください");
       return;
     }
 
@@ -137,12 +215,20 @@ export default function RoomPageV2() {
     setPayoutMessage(null);
     try {
       await postJson("/api/payouts/bank/register", {
+        bankCode: bankCodeInput.trim() || undefined,
         bankName: bankNameInput.trim(),
-        accountLast4: bankLast4Input.trim(),
+        branchName: branchNameInput.trim() || undefined,
+        branchCode: branchCodeInput.trim() || undefined,
+        accountType: accountTypeInput,
+        accountNumber,
+        accountHolderName: accountHolderNameInput.trim() || undefined,
+        onlineBankingUrl: onlineBankingUrlInput.trim() || undefined,
       });
-      setPayoutMessage("銀行口座を登録しました");
-      setBankNameInput("");
-      setBankLast4Input("");
+      setPayoutMessage("銀行口座を登録しました。送金テンプレートが更新されました");
+      setBranchCodeInput("");
+      setBranchNameInput("");
+      setAccountNumberInput("");
+      setAccountHolderNameInput("");
     } catch (error) {
       const message = error instanceof Error ? error.message : "銀行口座登録に失敗しました";
       setPayoutMessage(message);
@@ -179,6 +265,29 @@ export default function RoomPageV2() {
     }
   };
 
+  const handleSelectBank = (bank: (typeof BANK_OPTIONS)[number]) => {
+    setBankCodeInput(bank.code);
+    setBankNameInput(bank.name);
+    setOnlineBankingUrlInput(bank.onlineBankingUrl ?? "");
+    setBankSearchInput(bank.name);
+  };
+
+  const buildRecipientTransferTemplate = () => {
+    if (!selectedRecipient || !recipientBankAccount) {
+      return "";
+    }
+    return [
+      `受取人: ${selectedRecipient.userName}`,
+      `銀行名: ${recipientBankAccount.bankName ?? ""}`,
+      `銀行コード: ${recipientBankAccount.bankCode ?? ""}`,
+      `支店名: ${recipientBankAccount.branchName ?? ""}`,
+      `支店コード: ${recipientBankAccount.branchCode ?? ""}`,
+      `口座種別: ${getBankAccountTypeLabel(recipientBankAccount.accountType as BankAccountType)}`,
+      `口座番号: ${recipientBankAccount.accountNumber ?? ""}`,
+      `口座名義(カナ): ${recipientBankAccount.accountHolderName ?? ""}`,
+    ].join("\n");
+  };
+
   const handleCopyAccountInfo = async (value: string) => {
     if (!navigator?.clipboard) {
       setAccountCopiedMessage("このブラウザではコピー機能を使用できません");
@@ -190,6 +299,36 @@ export default function RoomPageV2() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "コピーに失敗しました";
       setAccountCopiedMessage(message);
+    }
+  };
+
+  const handleOpenOnlineBanking = () => {
+    if (!recipientOnlineBankingUrl) {
+      setPayoutMessage("この銀行のネットバンクURLが未設定です");
+      return;
+    }
+    window.open(recipientOnlineBankingUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleReportTransfer = async () => {
+    if (!pendingLedgerForSelectedRecipient?._id) {
+      setPayoutMessage("報告対象の送金リクエストが見つかりません");
+      return;
+    }
+    setWorkingAction("report_transfer");
+    setPayoutMessage(null);
+    try {
+      await postJson("/api/payouts/report-transfer", {
+        ledgerId: pendingLedgerForSelectedRecipient._id,
+        note: reportLedgerNote.trim() || undefined,
+      });
+      setReportLedgerNote("");
+      setPayoutMessage("送金完了報告を登録しました（管理確認待ち）");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "送金完了報告に失敗しました";
+      setPayoutMessage(message);
+    } finally {
+      setWorkingAction(null);
     }
   };
 
@@ -539,7 +678,7 @@ export default function RoomPageV2() {
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <details>
                   <summary className="cursor-pointer text-sm font-semibold text-slate-800">
-                    共通口座・支援（二の次 / 必要な時だけ）
+                    振込導線（銀行アプリ / ネットバンク）
                   </summary>
                   <p className="mt-2 text-xs text-slate-500">
                     Room名: {selectedRoom.name} / 役割: {selectedRoom.myRole}
@@ -548,7 +687,7 @@ export default function RoomPageV2() {
                       : ""}
                   </p>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-4">
                     <button
                       type="button"
                       disabled={workingAction === "stripe_onboard"}
@@ -558,91 +697,193 @@ export default function RoomPageV2() {
                       {workingAction === "stripe_onboard" ? "Stripe連携中..." : "Stripe Connectを連携"}
                     </button>
 
-                    <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs font-semibold text-slate-700">銀行口座を登録</p>
-                      <input
-                        value={bankNameInput}
-                        onChange={(event) => setBankNameInput(event.target.value)}
-                        placeholder="銀行名"
-                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <input
-                        value={bankLast4Input}
-                        onChange={(event) => setBankLast4Input(event.target.value)}
-                        placeholder="口座下4桁"
-                        maxLength={4}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <button
-                        type="button"
-                        disabled={workingAction === "bank_register"}
-                        onClick={handleBankRegister}
-                        className="rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {workingAction === "bank_register" ? "登録中..." : "銀行口座を保存"}
-                      </button>
-                    </div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                        <p className="text-xs font-semibold text-slate-700">銀行口座を登録（振込先）</p>
+                        <input
+                          value={bankSearchInput}
+                          onChange={(event) => setBankSearchInput(event.target.value)}
+                          placeholder="銀行名で検索（例: みずほ / MUFG / 0009）"
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          {bankCandidates.map((bank) => (
+                            <button
+                              key={bank.code}
+                              type="button"
+                              onClick={() => handleSelectBank(bank)}
+                              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
+                            >
+                              {bank.name} ({bank.code})
+                            </button>
+                          ))}
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <input
+                            value={bankCodeInput}
+                            onChange={(event) => setBankCodeInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                            placeholder="銀行コード (4桁)"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                          <input
+                            value={bankNameInput}
+                            onChange={(event) => setBankNameInput(event.target.value)}
+                            placeholder="銀行名"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <input
+                            value={branchCodeInput}
+                            onChange={(event) => setBranchCodeInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                            placeholder="支店コード (3桁)"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                          <input
+                            value={branchNameInput}
+                            onChange={(event) => setBranchNameInput(event.target.value)}
+                            placeholder="支店名"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <select
+                            value={accountTypeInput}
+                            onChange={(event) => setAccountTypeInput(event.target.value as BankAccountType)}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          >
+                            <option value="ordinary">普通</option>
+                            <option value="checking">当座</option>
+                            <option value="savings">貯蓄</option>
+                          </select>
+                          <input
+                            value={accountNumberInput}
+                            onChange={(event) => setAccountNumberInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+                            placeholder="口座番号 (4〜8桁)"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          />
+                        </div>
+                        <input
+                          value={accountHolderNameInput}
+                          onChange={(event) => setAccountHolderNameInput(event.target.value)}
+                          placeholder="口座名義（カナ）"
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          value={onlineBankingUrlInput}
+                          onChange={(event) => setOnlineBankingUrlInput(event.target.value)}
+                          placeholder="ネットバンクURL（任意）"
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        />
+                        <button
+                          type="button"
+                          disabled={workingAction === "bank_register"}
+                          onClick={handleBankRegister}
+                          className="rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {workingAction === "bank_register" ? "登録中..." : "銀行口座を保存"}
+                        </button>
+                      </div>
 
-                    <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs font-semibold text-slate-700">登録済み口座</p>
-                      {myPayoutAccounts.length === 0 ? (
-                        <p className="text-xs text-slate-500">受取口座はまだ登録されていません</p>
-                      ) : (
-                        myPayoutAccounts.map((account) => {
-                          const label =
-                            account.method === "bank_account"
-                              ? `${account.bankName ?? "銀行"} / ****${account.accountLast4 ?? "----"}`
-                              : `Stripe Connect / ${account.externalRef ?? "未連携"}`;
-                          return (
-                            <div key={account._id} className="rounded border border-slate-200 bg-slate-50 p-2">
-                              <p className="text-xs font-medium text-slate-700">{label}</p>
-                              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-                                <span>{account.status}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyAccountInfo(label)}
-                                  className="ml-auto rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
-                                >
-                                  コピー
-                                </button>
-                              </div>
+                      <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                        <p className="text-xs font-semibold text-slate-700">自分の振込テンプレート</p>
+                        {myBankAccountTemplates.length === 0 ? (
+                          <p className="text-xs text-slate-500">
+                            銀行口座を登録すると、ここから1タップでテンプレートコピーできます
+                          </p>
+                        ) : (
+                          myBankAccountTemplates.map((row) => (
+                            <div key={row.id} className="rounded border border-slate-200 bg-slate-50 p-2">
+                              <p className="text-xs font-medium text-slate-700">{row.summary}</p>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyAccountInfo(row.template)}
+                                className="mt-2 rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
+                              >
+                                振込テンプレをコピー
+                              </button>
                             </div>
-                          );
-                        })
-                      )}
-                      {accountCopiedMessage ? (
-                        <p className="text-[11px] text-slate-500">{accountCopiedMessage}</p>
-                      ) : null}
+                          ))
+                        )}
+                        {accountCopiedMessage ? (
+                          <p className="text-[11px] text-slate-500">{accountCopiedMessage}</p>
+                        ) : null}
+                      </div>
                     </div>
 
-                    <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                      <p className="text-xs font-semibold text-slate-700">支援リクエスト</p>
+                    <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+                      <p className="text-xs font-semibold text-slate-700">送金先を選ぶ</p>
                       <select
                         value={payoutRecipientUserId}
                         onChange={(event) => setPayoutRecipientUserId(event.target.value as Id<"users"> | "")}
                         className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
                       >
                         <option value="">自分宛て</option>
-                        {roomMembers.map((member) => (
-                          <option key={member._id} value={member.userId}>
+                        {roomPayoutDestinations.map((member) => (
+                          <option key={member.userId} value={member.userId}>
                             {member.userName} ({member.role})
                           </option>
                         ))}
                       </select>
-                      <input
-                        value={payoutAmount}
-                        onChange={(event) => setPayoutAmount(event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                        placeholder="金額"
-                      />
-                      <select
-                        value={payoutMethod}
-                        onChange={(event) => setPayoutMethod(event.target.value as "stripe_connect" | "bank_account")}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                      >
-                        <option value="bank_account">bank_account</option>
-                        <option value="stripe_connect">stripe_connect</option>
-                      </select>
+
+                      {selectedRecipient ? (
+                        <div className="rounded border border-blue-200 bg-blue-50/60 p-3">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {selectedRecipient.userName} の振込先
+                          </p>
+                          {recipientBankAccount?.method === "bank_account" ? (
+                            <div className="mt-2 space-y-2 text-xs text-slate-700">
+                              <p>銀行: {recipientBankAccount.bankName ?? "-"} ({recipientBankAccount.bankCode ?? "-"})</p>
+                              <p>支店: {recipientBankAccount.branchName ?? "-"} ({recipientBankAccount.branchCode ?? "-"})</p>
+                              <p>種別: {getBankAccountTypeLabel(recipientBankAccount.accountType as BankAccountType)}</p>
+                              <p>口座番号: {recipientBankAccount.accountNumber ?? "-"}</p>
+                              <p>名義(カナ): {recipientBankAccount.accountHolderName ?? "-"}</p>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyAccountInfo(buildRecipientTransferTemplate())}
+                                  className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100"
+                                >
+                                  振込情報を一括コピー
+                                </button>
+                                {recipientOnlineBankingUrl ? (
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenOnlineBanking}
+                                    className="rounded border border-blue-300 bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-200"
+                                  >
+                                    ネットバンクを開く
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-600">
+                              銀行口座が未登録です。相手に振込先登録を依頼してください。
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                      <p className="text-xs font-semibold text-slate-700">送金リクエストを作成（台帳化）</p>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <input
+                          value={payoutAmount}
+                          onChange={(event) => setPayoutAmount(event.target.value)}
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          placeholder="金額"
+                        />
+                        <select
+                          value={payoutMethod}
+                          onChange={(event) => setPayoutMethod(event.target.value as "stripe_connect" | "bank_account")}
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        >
+                          <option value="bank_account">bank_account</option>
+                          <option value="stripe_connect">stripe_connect</option>
+                        </select>
+                      </div>
                       <input
                         value={payoutNote}
                         onChange={(event) => setPayoutNote(event.target.value)}
@@ -659,8 +900,38 @@ export default function RoomPageV2() {
                       </button>
                     </div>
 
+                    <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                      <p className="text-xs font-semibold text-slate-700">送金完了報告</p>
+                      {pendingLedgerForSelectedRecipient ? (
+                        <>
+                          <p className="text-xs text-slate-600">
+                            最新台帳: {pendingLedgerForSelectedRecipient.amount.toLocaleString("ja-JP")}円 / status: {pendingLedgerForSelectedRecipient.status}
+                          </p>
+                          <input
+                            value={reportLedgerNote}
+                            onChange={(event) => setReportLedgerNote(event.target.value)}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                            placeholder="振込日時・メモ（任意）"
+                          />
+                          <button
+                            type="button"
+                            disabled={workingAction === "report_transfer"}
+                            onClick={handleReportTransfer}
+                            className="rounded bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {workingAction === "report_transfer" ? "報告中..." : "送金完了を報告"}
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-xs text-slate-500">
+                          先に送金先を選んで、送金リクエストを作成してください。
+                        </p>
+                      )}
+                    </div>
+
                     <div className="space-y-1 text-xs text-slate-600">
                       <p>登録口座数: {myPayoutAccounts.length}</p>
+                      <p>Room内の振込先登録済み人数: {roomPayoutDestinations.filter((row) => row.payoutAccount).length}</p>
                       <p>送金台帳件数: {roomPayoutLedger.length}</p>
                       {membersMissingPayout.length > 0 ? (
                         <p className="text-amber-700">

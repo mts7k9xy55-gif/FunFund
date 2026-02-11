@@ -346,6 +346,15 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("active"), v.literal("disabled")),
     externalRef: v.optional(v.string()), // Stripe account IDなど
     bankName: v.optional(v.string()),
+    bankCode: v.optional(v.string()),
+    branchName: v.optional(v.string()),
+    branchCode: v.optional(v.string()),
+    accountType: v.optional(
+      v.union(v.literal("ordinary"), v.literal("checking"), v.literal("savings"))
+    ),
+    accountNumber: v.optional(v.string()),
+    accountHolderName: v.optional(v.string()),
+    onlineBankingUrl: v.optional(v.string()),
     accountLast4: v.optional(v.string()),
     isDefault: v.boolean(),
     createdAt: v.number(),

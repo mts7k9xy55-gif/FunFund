@@ -6,6 +6,7 @@ import { updateRoomStatusHttp, setRoomStripeInfoHttp, registerStripeEventHttp } 
 import {
   createPayoutRequestHttp,
   registerPayoutAccountHttp,
+  reportPayoutTransferHttp,
   settlePayoutLedgerHttp,
 } from "./payouts";
 
@@ -46,6 +47,12 @@ http.route({
   path: "/payouts/settle",
   method: "POST",
   handler: settlePayoutLedgerHttp,
+});
+
+http.route({
+  path: "/payouts/reportTransfer",
+  method: "POST",
+  handler: reportPayoutTransferHttp,
 });
 
 export default http;

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireRoomMember, requireUser } from "./_guards";
 
 type PayoutMethod = "stripe_connect" | "bank_account";
+type AccountType = "ordinary" | "checking" | "savings";
 
 async function findOrCreateUserByClerkId(ctx: any, clerkUserId: string) {
   let user = await ctx.db
@@ -62,11 +63,21 @@ async function registerPayoutAccountCore(
     status?: "pending" | "active" | "disabled";
     externalRef?: string;
     bankName?: string;
+    bankCode?: string;
+    branchName?: string;
+    branchCode?: string;
+    accountType?: AccountType;
+    accountNumber?: string;
+    accountHolderName?: string;
+    onlineBankingUrl?: string;
     accountLast4?: string;
     isDefault?: boolean;
   }
 ) {
   const user = await findOrCreateUserByClerkId(ctx, args.clerkUserId);
+  const normalizedAccountNumber = args.accountNumber?.replace(/[^0-9]/g, "");
+  const normalizedAccountLast4 =
+    args.accountLast4 ?? normalizedAccountNumber?.slice(-4);
 
   const userAccounts = await ctx.db
     .query("payoutAccounts")
@@ -77,9 +88,22 @@ async function registerPayoutAccountCore(
     if (args.externalRef && account.externalRef) {
       return account.method === args.method && account.externalRef === args.externalRef;
     }
+    if (
+      args.method === "bank_account" &&
+      normalizedAccountNumber &&
+      args.branchCode &&
+      (args.bankCode || args.bankName)
+    ) {
+      return (
+        account.method === args.method &&
+        account.accountNumber === normalizedAccountNumber &&
+        account.branchCode === args.branchCode &&
+        (args.bankCode ? account.bankCode === args.bankCode : account.bankName === args.bankName)
+      );
+    }
     return (
       account.method === args.method &&
-      account.accountLast4 === args.accountLast4 &&
+      account.accountLast4 === normalizedAccountLast4 &&
       account.bankName === args.bankName
     );
   });
@@ -90,7 +114,14 @@ async function registerPayoutAccountCore(
       status: args.status ?? "active",
       externalRef: args.externalRef,
       bankName: args.bankName,
-      accountLast4: args.accountLast4,
+      bankCode: args.bankCode,
+      branchName: args.branchName,
+      branchCode: args.branchCode,
+      accountType: args.accountType,
+      accountNumber: normalizedAccountNumber,
+      accountHolderName: args.accountHolderName,
+      onlineBankingUrl: args.onlineBankingUrl,
+      accountLast4: normalizedAccountLast4,
       isDefault: args.isDefault ?? existing.isDefault,
       updatedAt: now,
     });
@@ -106,7 +137,14 @@ async function registerPayoutAccountCore(
     status: args.status ?? "active",
     externalRef: args.externalRef,
     bankName: args.bankName,
-    accountLast4: args.accountLast4,
+    bankCode: args.bankCode,
+    branchName: args.branchName,
+    branchCode: args.branchCode,
+    accountType: args.accountType,
+    accountNumber: normalizedAccountNumber,
+    accountHolderName: args.accountHolderName,
+    onlineBankingUrl: args.onlineBankingUrl,
+    accountLast4: normalizedAccountLast4,
     isDefault: args.isDefault ?? userAccounts.length === 0,
     createdAt: now,
     updatedAt: now,
@@ -222,6 +260,57 @@ async function settlePayoutLedgerCore(
   return args.ledgerId;
 }
 
+function mergeNotes(currentNote?: string, extraNote?: string) {
+  if (!extraNote?.trim()) {
+    return currentNote;
+  }
+  if (!currentNote?.trim()) {
+    return extraNote.trim();
+  }
+  return `${currentNote}\n${extraNote.trim()}`;
+}
+
+async function reportPayoutTransferCore(
+  ctx: any,
+  args: {
+    clerkUserId: string;
+    ledgerId: any;
+    note?: string;
+  }
+) {
+  const reporter = await findOrCreateUserByClerkId(ctx, args.clerkUserId);
+  const ledger = await ctx.db.get(args.ledgerId);
+  if (!ledger) {
+    throw new Error("ledger entry not found");
+  }
+
+  const membership = await requireRoomMember(ctx, ledger.roomId, reporter._id);
+  const canReport =
+    membership.role === "owner" ||
+    ledger.requestedBy === reporter._id ||
+    ledger.recipientUserId === reporter._id;
+  if (!canReport) {
+    throw new Error("you are not allowed to report this transfer");
+  }
+
+  if (ledger.status === "settled" || ledger.status === "canceled") {
+    throw new Error("this payout is already finalized");
+  }
+
+  const note = mergeNotes(
+    ledger.note,
+    args.note ?? `Manual transfer reported at ${new Date().toISOString()}`
+  );
+
+  await ctx.db.patch(args.ledgerId, {
+    status: "ready",
+    note,
+    updatedAt: Date.now(),
+  });
+
+  return args.ledgerId;
+}
+
 export const registerPayoutAccountByClerkUserId = mutation({
   args: {
     clerkUserId: v.string(),
@@ -229,6 +318,15 @@ export const registerPayoutAccountByClerkUserId = mutation({
     status: v.optional(v.union(v.literal("pending"), v.literal("active"), v.literal("disabled"))),
     externalRef: v.optional(v.string()),
     bankName: v.optional(v.string()),
+    bankCode: v.optional(v.string()),
+    branchName: v.optional(v.string()),
+    branchCode: v.optional(v.string()),
+    accountType: v.optional(
+      v.union(v.literal("ordinary"), v.literal("checking"), v.literal("savings"))
+    ),
+    accountNumber: v.optional(v.string()),
+    accountHolderName: v.optional(v.string()),
+    onlineBankingUrl: v.optional(v.string()),
     accountLast4: v.optional(v.string()),
     isDefault: v.optional(v.boolean()),
   },
@@ -259,6 +357,15 @@ export const settlePayoutLedgerByAdmin = mutation({
     adminKey: v.string(),
   },
   handler: async (ctx, args) => await settlePayoutLedgerCore(ctx, args),
+});
+
+export const reportPayoutTransferByClerkUserId = mutation({
+  args: {
+    clerkUserId: v.string(),
+    ledgerId: v.id("payoutLedger"),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => await reportPayoutTransferCore(ctx, args),
 });
 
 export const listMyPayoutAccounts = query({
@@ -320,6 +427,57 @@ export const listMembersMissingPayoutMethod = query({
   },
 });
 
+export const listRoomPayoutDestinations = query({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    await requireRoomMember(ctx, args.roomId, user._id);
+
+    const members = await ctx.db
+      .query("roomMembers")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
+
+    const destinations = await Promise.all(
+      members.map(async (member) => {
+        const accounts = await ctx.db
+          .query("payoutAccounts")
+          .withIndex("by_userId", (q) => q.eq("userId", member.userId))
+          .collect();
+        const activeAccounts = accounts.filter((account) => account.status === "active");
+        const selected =
+          activeAccounts.find((account) => account.isDefault) ?? activeAccounts[0] ?? null;
+        const memberUser = await ctx.db.get(member.userId);
+
+        return {
+          userId: member.userId,
+          userName: memberUser?.name ?? "Unknown",
+          role: member.role,
+          payoutAccount: selected
+            ? {
+                accountId: selected._id,
+                method: selected.method,
+                bankName: selected.bankName,
+                bankCode: selected.bankCode,
+                branchName: selected.branchName,
+                branchCode: selected.branchCode,
+                accountType: selected.accountType,
+                accountNumber: selected.accountNumber,
+                accountHolderName: selected.accountHolderName,
+                onlineBankingUrl: selected.onlineBankingUrl,
+                accountLast4: selected.accountLast4,
+              }
+            : null,
+        };
+      })
+    );
+
+    return destinations;
+  },
+});
+
 export const registerPayoutAccountHttp = httpAction(async (ctx, request) => {
   if (request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -331,6 +489,13 @@ export const registerPayoutAccountHttp = httpAction(async (ctx, request) => {
     status?: "pending" | "active" | "disabled";
     externalRef?: string;
     bankName?: string;
+    bankCode?: string;
+    branchName?: string;
+    branchCode?: string;
+    accountType?: AccountType;
+    accountNumber?: string;
+    accountHolderName?: string;
+    onlineBankingUrl?: string;
     accountLast4?: string;
     isDefault?: boolean;
   };
@@ -345,6 +510,13 @@ export const registerPayoutAccountHttp = httpAction(async (ctx, request) => {
     status: body.status,
     externalRef: body.externalRef,
     bankName: body.bankName,
+    bankCode: body.bankCode,
+    branchName: body.branchName,
+    branchCode: body.branchCode,
+    accountType: body.accountType,
+    accountNumber: body.accountNumber,
+    accountHolderName: body.accountHolderName,
+    onlineBankingUrl: body.onlineBankingUrl,
     accountLast4: body.accountLast4,
     isDefault: body.isDefault,
   });
@@ -413,6 +585,33 @@ export const settlePayoutLedgerHttp = httpAction(async (ctx, request) => {
     status: body.status,
     note: body.note,
     adminKey: body.adminKey,
+  });
+
+  return new Response(JSON.stringify({ id }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
+export const reportPayoutTransferHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const body = (await request.json()) as {
+    clerkUserId?: string;
+    ledgerId?: string;
+    note?: string;
+  };
+
+  if (!body.clerkUserId || !body.ledgerId) {
+    return new Response("Missing clerkUserId or ledgerId", { status: 400 });
+  }
+
+  const id = await reportPayoutTransferCore(ctx, {
+    clerkUserId: body.clerkUserId,
+    ledgerId: body.ledgerId as any,
+    note: body.note,
   });
 
   return new Response(JSON.stringify({ id }), {

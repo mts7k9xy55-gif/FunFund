@@ -7,7 +7,11 @@ function getConvexHttpBase(): string {
 }
 
 export async function postConvexPayout<T extends Record<string, unknown>>(
-  path: "/payouts/registerAccount" | "/payouts/request" | "/payouts/settle",
+  path:
+    | "/payouts/registerAccount"
+    | "/payouts/request"
+    | "/payouts/settle"
+    | "/payouts/reportTransfer",
   body: Record<string, unknown>
 ): Promise<T> {
   const response = await fetch(`${getConvexHttpBase()}${path}`, {
