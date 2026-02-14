@@ -16,16 +16,16 @@ export default function PaywallBanner({ roomStatus, roomId, language }: PaywallB
   const [isLoading, setIsLoading] = useState(false);
   const messages: Record<"ja" | "en", Record<"draft" | "active" | "past_due" | "canceled", string>> = {
     ja: {
-      draft: "このRoomは有効化が必要です",
+      draft: "決済が必要です",
       active: "", // activeの場合は表示しない
-      past_due: "このRoomの有効期限が切れています",
-      canceled: "このRoomはキャンセルされています",
+      past_due: "決済が必要です",
+      canceled: "決済が必要です",
     },
     en: {
-      draft: "This room needs to be activated",
+      draft: "Payment required",
       active: "", // activeの場合は表示しない
-      past_due: "This room's subscription has expired",
-      canceled: "This room has been canceled",
+      past_due: "Payment required",
+      canceled: "Payment required",
     },
   };
 
@@ -97,7 +97,7 @@ export default function PaywallBanner({ roomStatus, roomId, language }: PaywallB
         >
           {isLoading
             ? (language === "ja" ? "処理中..." : "Loading...")
-            : (language === "ja" ? "支払いへ" : "Go to Payment")}
+            : (language === "ja" ? "決済する" : "Pay now")}
         </button>
       </div>
     </div>

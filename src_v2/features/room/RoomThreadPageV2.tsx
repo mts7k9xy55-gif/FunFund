@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import PaywallBanner from "@/components/room/PaywallBanner";
-import HomeScreenAddGuide from "@/components/room/HomeScreenAddGuide";
 import RoomAccountControls from "@/components/room/RoomAccountControls";
 
 interface RoomThreadPageV2Props {
@@ -588,7 +587,6 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                   </button>
                 </>
               ) : null}
-              <HomeScreenAddGuide targetPath="/room" />
             </div>
             {inviteMessage ? <p className="text-xs text-slate-500">{inviteMessage}</p> : null}
           </div>

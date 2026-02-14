@@ -15,7 +15,6 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import PaywallBanner from "@/components/room/PaywallBanner";
 import RoomSelector from "@/components/room/RoomSelector";
-import HomeScreenAddGuide from "@/components/room/HomeScreenAddGuide";
 import RoomAccountControls from "@/components/room/RoomAccountControls";
 import { isPayoutsV1Enabled } from "@/lib/featureFlags";
 import { BANK_OPTIONS, filterBankOptions, findBankOptionByCode } from "./bankOptions";
@@ -502,7 +501,6 @@ export default function RoomPageV2() {
                 </button>
               </div>
             ) : null}
-            <HomeScreenAddGuide targetPath="/room" />
             {inviteMessage ? <p className="text-xs text-slate-500">{inviteMessage}</p> : null}
           </div>
         </div>
