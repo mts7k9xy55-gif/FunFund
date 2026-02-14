@@ -11,10 +11,6 @@ export default function Home() {
           <h1 className="mt-4 text-3xl font-black leading-tight text-slate-900 sm:text-5xl">
             使える議論の場から、実行できる支援まで。
           </h1>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-            FunFundは「議論して終わり」にしないための作業場です。Roomを作成して招待で参加し、
-            理由付きの意見を重ねて合意形成を進めます。
-          </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
               href="/room"
@@ -33,25 +29,25 @@ export default function Home() {
 
         <section className="mt-8 grid gap-4 md:grid-cols-3">
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">01</p>
-            <h2 className="mt-3 text-xl font-bold text-slate-900">できること</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-700">01</p>
+            <h2 className="mt-3 text-2xl font-bold text-slate-900">できること</h2>
+            <p className="mt-3 text-base leading-8 text-slate-600">
               Room作成、スレッド作成、意思決定ログ記録を最短手順で実行できます。
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">02</p>
-            <h2 className="mt-3 text-xl font-bold text-slate-900">
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-700">02</p>
+            <h2 className="mt-3 text-[2.05rem] font-bold leading-tight text-slate-900">
               建設的な議論・意思決定
             </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <p className="mt-3 text-lg leading-8 text-slate-600">
               提案理由と評価理由を明示して、判断を記録。誰が何を根拠に決めたかを残せます。
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">03</p>
-            <h2 className="mt-3 text-xl font-bold text-slate-900">財政支援を円滑に</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-700">03</p>
+            <h2 className="mt-3 text-2xl font-bold text-slate-900">財政支援を円滑に</h2>
+            <p className="mt-3 text-base leading-8 text-slate-600">
               口座情報登録、表示、送金リクエストを同じ画面で処理。寄付や支援実行の詰まりを減らします。
             </p>
           </article>
