@@ -32,5 +32,5 @@ export function isDecisionV2Enabled(): boolean {
 }
 
 export function isPayoutsV1Enabled(): boolean {
-  return parseBooleanEnv(process.env.NEXT_PUBLIC_PAYOUTS_V1_ENABLED, true);
+  return parseBooleanEnv(process.env.NEXT_PUBLIC_PAYOUTS_V1_ENABLED, false);
 }
