@@ -3,12 +3,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface CreateRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, isPrivate: boolean, evaluationMode: "open" | "closed") => void;
+  onSubmit: (name: string, mode: "open" | "closed") => void;
   language?: "ja" | "en";
 }
 
@@ -19,35 +20,37 @@ export default function CreateRoomModal({
   language = "ja",
 }: CreateRoomModalProps) {
   const [name, setName] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [evaluationMode, setEvaluationMode] = useState<"open" | "closed">("open");
+  const [mode, setMode] = useState<"open" | "closed">("open");
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = () => {
     if (!name.trim()) return;
 
-    onSubmit(name.trim(), isPrivate, evaluationMode);
+    onSubmit(name.trim(), mode);
     setName("");
-    setIsPrivate(false);
-    setEvaluationMode("open");
+    setMode("open");
     onClose();
   };
 
   const handleClose = () => {
     setName("");
-    setIsPrivate(false);
-    setEvaluationMode("open");
+    setMode("open");
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  const modalContent = (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
       />
-      <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-xl">
+      <div className="relative w-full max-w-lg bg-card border border-border rounded-xl shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-xl font-semibold text-foreground">
@@ -92,35 +95,16 @@ export default function CreateRoomModal({
             />
           </div>
 
-          {/* プライベート設定 */}
-          <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-            <input
-              type="checkbox"
-              id="isPrivate"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="w-5 h-5 rounded border-border text-primary focus:ring-2 focus:ring-primary"
-            />
-            <label
-              htmlFor="isPrivate"
-              className="flex-1 text-sm font-medium text-foreground cursor-pointer"
-            >
-              {language === "ja"
-                ? "プライベートグループ（招待コードが必要）"
-                : "Private group (invite code required)"}
-            </label>
-          </div>
-
-          {/* 評価モード */}
+          {/* Roomタイプ（2択） */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              {language === "ja" ? "評価モード" : "Evaluation Mode"}
+              {language === "ja" ? "Roomタイプ" : "Room Type"}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setEvaluationMode("open")}
+                onClick={() => setMode("open")}
                 className={`p-4 rounded-lg border-2 transition-colors ${
-                  evaluationMode === "open"
+                  mode === "open"
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
@@ -130,25 +114,25 @@ export default function CreateRoomModal({
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {language === "ja"
-                    ? "革新性/実現可能性/社会的インパクト/チーム力/プレゼン"
-                    : "Innovation/Feasibility/Impact/Team/Presentation"}
+                    ? "公開で運用（招待なし）"
+                    : "Public room (no invite code)"}
                 </div>
               </button>
               <button
-                onClick={() => setEvaluationMode("closed")}
+                onClick={() => setMode("closed")}
                 className={`p-4 rounded-lg border-2 transition-colors ${
-                  evaluationMode === "closed"
+                  mode === "closed"
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
                 <div className="text-sm font-semibold mb-1">
-                  {language === "ja" ? "クローズド" : "Closed"}
+                  {language === "ja" ? "プライベートグループ" : "Private Group"}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {language === "ja"
-                    ? "金銭/家事/決定力/協力/ストレス軽減"
-                    : "Money/Housework/Decision/Cooperation/Stress Relief"}
+                    ? "招待コードで参加"
+                    : "Invite code required"}
                 </div>
               </button>
             </div>
@@ -174,4 +158,6 @@ export default function CreateRoomModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
