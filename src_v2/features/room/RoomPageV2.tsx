@@ -31,19 +31,13 @@ function formatCurrencyYen(value: number) {
   return `¥${Math.max(0, Math.round(value)).toLocaleString("ja-JP")}`;
 }
 
-async function fileToDataUrl(file: File): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-    reader.readAsDataURL(file);
-  });
-}
-
 async function handleImagePasteToField(
   event: ClipboardEvent<HTMLTextAreaElement>,
   setField: Dispatch<SetStateAction<string>>,
-  onError: (message: string) => void
+  createImageUploadUrl: (args: Record<string, never>) => Promise<string>,
+  resolveImageUrl: (args: { storageId: Id<"_storage"> }) => Promise<string>,
+  onError: (message: string) => void,
+  onUploading?: (uploading: boolean) => void
 ) {
   const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) =>
     item.type.startsWith("image/")
@@ -56,22 +50,41 @@ async function handleImagePasteToField(
     onError("画像の取得に失敗しました");
     return;
   }
-  if (imageFile.size > 2_000_000) {
-    onError("画像サイズは2MB以下にしてください");
+  if (imageFile.size > 10_000_000) {
+    onError("画像サイズは10MB以下にしてください");
     event.preventDefault();
     return;
   }
 
   event.preventDefault();
+  const target = event.currentTarget;
+  const start = target.selectionStart ?? target.value.length;
+  const end = target.selectionEnd ?? start;
+
+  onUploading?.(true);
   try {
-    const imageDataUrl = await fileToDataUrl(imageFile);
-    const target = event.currentTarget;
-    const start = target.selectionStart ?? target.value.length;
-    const end = target.selectionEnd ?? start;
-    const inserted = `${start > 0 ? "\n" : ""}${imageDataUrl}\n`;
+    const uploadUrl = await createImageUploadUrl({});
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "POST",
+      headers: { "Content-Type": imageFile.type || "application/octet-stream" },
+      body: imageFile,
+    });
+    if (!uploadResponse.ok) {
+      throw new Error("画像アップロードに失敗しました");
+    }
+    const uploadPayload = (await uploadResponse.json()) as { storageId?: string };
+    if (!uploadPayload.storageId) {
+      throw new Error("アップロード結果が不正です");
+    }
+    const imageUrl = await resolveImageUrl({
+      storageId: uploadPayload.storageId as Id<"_storage">,
+    });
+    const inserted = `${start > 0 ? "\n" : ""}${imageUrl}\n`;
     setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
   } catch {
     onError("画像の貼り付けに失敗しました");
+  } finally {
+    onUploading?.(false);
   }
 }
 
@@ -84,13 +97,15 @@ export default function RoomPageV2() {
 
   const createUserMutation = useMutation(api.users.createUser);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
+  const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
+  const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
-  const [threadType, setThreadType] = useState<"proposal" | "comment">("proposal");
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
+  const [threadImageUploading, setThreadImageUploading] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [showArchivedThreads, setShowArchivedThreads] = useState(false);
   const [uiFeedback, setUiFeedback] = useState<string | null>(null);
@@ -509,7 +524,7 @@ export default function RoomPageV2() {
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">掲示板</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">企画</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button
@@ -550,7 +565,7 @@ export default function RoomPageV2() {
                       <div className="flex items-start justify-between gap-3">
                         <p className="line-clamp-2 text-2xl font-black text-slate-900">{thread.title ?? "Untitled"}</p>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                          {thread.type === "proposal" ? "企画" : "掲示板"}
+                          企画
                         </span>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -613,14 +628,7 @@ export default function RoomPageV2() {
                 </div>
 
                 <div className="space-y-3">
-                  <select
-                    value={threadType}
-                    onChange={(event) => setThreadType(event.target.value as "proposal" | "comment")}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="proposal">企画</option>
-                    <option value="comment">掲示板</option>
-                  </select>
+                  <p className="rounded bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">企画</p>
                   <input
                     value={threadTitle}
                     onChange={(event) => setThreadTitle(event.target.value)}
@@ -632,17 +640,35 @@ export default function RoomPageV2() {
                   value={threadBody}
                   onChange={(event) => setThreadBody(event.target.value)}
                   onPaste={(event) =>
-                    void handleImagePasteToField(event, setThreadBody, setUiFeedback)
+                    void handleImagePasteToField(
+                      event,
+                      setThreadBody,
+                      createImageUploadUrl,
+                      resolveImageUrl,
+                      setUiFeedback,
+                      setThreadImageUploading
+                    )
                   }
                   placeholder="理由・背景・論点（必須）"
                   className="mt-3 min-h-32 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base leading-relaxed"
                 />
-                <p className="mt-2 text-xs text-slate-500">画像URLを本文に貼ると、詳細画面で写真表示できます。</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  画像を貼り付けると自動でアップロードされます。
+                </p>
+                {threadImageUploading ? (
+                  <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
+                ) : null}
 
                 {threadError ? <p className="mt-2 text-sm text-red-600">{threadError}</p> : null}
                 <button
                   type="button"
-                  disabled={!isActiveRoom || creatingThread || !threadBody.trim() || !threadTitle.trim()}
+                  disabled={
+                    !isActiveRoom ||
+                    creatingThread ||
+                    threadImageUploading ||
+                    !threadBody.trim() ||
+                    !threadTitle.trim()
+                  }
                   onClick={async () => {
                     if (!effectiveRoomId) return;
                     setCreatingThread(true);
@@ -650,7 +676,7 @@ export default function RoomPageV2() {
                     try {
                       const newThreadId = await createThreadV2({
                         roomId: effectiveRoomId,
-                        type: threadType,
+                        type: "proposal",
                         title: threadTitle.trim(),
                         initialBody: "スレッドを開始しました。",
                         reason: threadBody.trim(),

@@ -29,6 +29,7 @@ import type * as publicPreviews from "../publicPreviews.js";
 import type * as rooms from "../rooms.js";
 import type * as stripe from "../stripe.js";
 import type * as threads from "../threads.js";
+import type * as uploads from "../uploads.js";
 import type * as users from "../users.js";
 import type * as v2Migration from "../v2Migration.js";
 import type * as v2Public from "../v2Public.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   rooms: typeof rooms;
   stripe: typeof stripe;
   threads: typeof threads;
+  uploads: typeof uploads;
   users: typeof users;
   v2Migration: typeof v2Migration;
   v2Public: typeof v2Public;

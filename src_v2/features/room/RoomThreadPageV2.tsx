@@ -31,15 +31,11 @@ function formatMessageKind(kind: "comment" | "reason" | "execution") {
 }
 
 function isImageUrl(url: string) {
-  if (url.startsWith("data:image/")) {
-    return true;
-  }
   return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url);
 }
 
 function renderBodyWithLinks(body: string) {
-  const regex =
-    /(https?:\/\/[^\s]+|data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+)/g;
+  const regex = /(https?:\/\/[^\s]+)/g;
   const elements: ReactNode[] = [];
   let lastIndex = 0;
   let index = 0;
@@ -53,27 +49,21 @@ function renderBodyWithLinks(body: string) {
       elements.push(<span key={`text-${index++}`}>{body.slice(lastIndex, start)}</span>);
     }
 
-    const trailing = rawUrl.startsWith("data:image/")
-      ? ""
-      : (rawUrl.match(/[),.!?、。]+$/)?.[0] ?? "");
+    const trailing = rawUrl.match(/[),.!?、。]+$/)?.[0] ?? "";
     const cleanUrl = trailing ? rawUrl.slice(0, rawUrl.length - trailing.length) : rawUrl;
 
     if (isImageUrl(cleanUrl)) {
       const mediaKey = `media-${index++}`;
       elements.push(
         <span key={mediaKey} className="my-3 block">
-          {cleanUrl.startsWith("data:image/") ? (
-            <p className="mb-2 block text-xs text-slate-500">貼り付け画像</p>
-          ) : (
-            <a
-              href={cleanUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="mb-2 block text-sm underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
-            >
-              {cleanUrl}
-            </a>
-          )}
+          <a
+            href={cleanUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mb-2 block text-sm underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
+          >
+            {cleanUrl}
+          </a>
           <a href={cleanUrl} target="_blank" rel="noreferrer noopener">
             <img
               src={cleanUrl}
@@ -119,19 +109,13 @@ function formatDueDate(dueAt?: number) {
   return new Date(dueAt).toLocaleDateString("ja-JP");
 }
 
-async function fileToDataUrl(file: File): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-    reader.readAsDataURL(file);
-  });
-}
-
 async function handleImagePasteToField(
   event: ClipboardEvent<HTMLTextAreaElement>,
   setField: Dispatch<SetStateAction<string>>,
-  onError: (message: string) => void
+  createImageUploadUrl: (args: Record<string, never>) => Promise<string>,
+  resolveImageUrl: (args: { storageId: Id<"_storage"> }) => Promise<string>,
+  onError: (message: string) => void,
+  onUploading?: (uploading: boolean) => void
 ) {
   const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) =>
     item.type.startsWith("image/")
@@ -144,22 +128,41 @@ async function handleImagePasteToField(
     onError("画像の取得に失敗しました");
     return;
   }
-  if (imageFile.size > 2_000_000) {
-    onError("画像サイズは2MB以下にしてください");
+  if (imageFile.size > 10_000_000) {
+    onError("画像サイズは10MB以下にしてください");
     event.preventDefault();
     return;
   }
 
   event.preventDefault();
+  const target = event.currentTarget;
+  const start = target.selectionStart ?? target.value.length;
+  const end = target.selectionEnd ?? start;
+  onUploading?.(true);
+
   try {
-    const imageDataUrl = await fileToDataUrl(imageFile);
-    const target = event.currentTarget;
-    const start = target.selectionStart ?? target.value.length;
-    const end = target.selectionEnd ?? start;
-    const inserted = `${start > 0 ? "\n" : ""}${imageDataUrl}\n`;
+    const uploadUrl = await createImageUploadUrl({});
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "POST",
+      headers: { "Content-Type": imageFile.type || "application/octet-stream" },
+      body: imageFile,
+    });
+    if (!uploadResponse.ok) {
+      throw new Error("画像アップロードに失敗しました");
+    }
+    const uploadPayload = (await uploadResponse.json()) as { storageId?: string };
+    if (!uploadPayload.storageId) {
+      throw new Error("アップロード結果が不正です");
+    }
+    const imageUrl = await resolveImageUrl({
+      storageId: uploadPayload.storageId as Id<"_storage">,
+    });
+    const inserted = `${start > 0 ? "\n" : ""}${imageUrl}\n`;
     setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
   } catch {
     onError("画像の貼り付けに失敗しました");
+  } finally {
+    onUploading?.(false);
   }
 }
 
@@ -182,6 +185,8 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const deleteIntent = useMutation(api.intents.deleteIntent);
   const finalizeDecision = useMutation(api.finalDecisions.finalizeDecision);
   const upsertCommitment = useMutation(api.commitments.upsertCommitment);
+  const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
+  const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const selectedRoom = useQuery(
     api.rooms.getRoom,
@@ -209,6 +214,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const [threadActionId, setThreadActionId] = useState<Id<"threads"> | null>(null);
   const [messageActionId, setMessageActionId] = useState<Id<"messages"> | null>(null);
   const [intentActionId, setIntentActionId] = useState<Id<"intents"> | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const [postingReply, setPostingReply] = useState(false);
   const [intentScoreInput, setIntentScoreInput] = useState("");
@@ -811,15 +817,25 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                       value={replyBody}
                       onChange={(event) => setReplyBody(event.target.value)}
                       onPaste={(event) =>
-                        void handleImagePasteToField(event, setReplyBody, setUiFeedback)
+                        void handleImagePasteToField(
+                          event,
+                          setReplyBody,
+                          createImageUploadUrl,
+                          resolveImageUrl,
+                          setUiFeedback,
+                          setImageUploading
+                        )
                       }
                       placeholder="返信を書く"
                       className="min-h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg leading-relaxed"
                     />
-                    <p className="text-xs text-slate-500">画像URLを本文に貼ると、その場で写真表示できます。</p>
+                    <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
+                    {imageUploading ? (
+                      <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
+                    ) : null}
                     <button
                       type="submit"
-                      disabled={!canWriteToThread || postingReply || !replyBody.trim()}
+                      disabled={!canWriteToThread || postingReply || imageUploading || !replyBody.trim()}
                       className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {postingReply ? "投稿中..." : "返信を投稿"}
@@ -851,15 +867,25 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                         value={intentReason}
                         onChange={(event) => setIntentReason(event.target.value)}
                         onPaste={(event) =>
-                          void handleImagePasteToField(event, setIntentReason, setUiFeedback)
+                          void handleImagePasteToField(
+                            event,
+                            setIntentReason,
+                            createImageUploadUrl,
+                            resolveImageUrl,
+                            setUiFeedback,
+                            setImageUploading
+                          )
                         }
                         placeholder="理由（任意）"
                         className="min-h-28 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
                       />
-                      <p className="text-xs text-slate-500">画像URLを理由に貼ると、その場で写真表示できます。</p>
+                      <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
+                      {imageUploading ? (
+                        <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
+                      ) : null}
                       <button
                         type="submit"
-                        disabled={!canWriteToThread || postingIntent}
+                        disabled={!canWriteToThread || postingIntent || imageUploading}
                         className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {postingIntent ? "投稿中..." : "意思を投稿"}
@@ -1016,15 +1042,25 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                         value={finalNote}
                         onChange={(event) => setFinalNote(event.target.value)}
                         onPaste={(event) =>
-                          void handleImagePasteToField(event, setFinalNote, setUiFeedback)
+                          void handleImagePasteToField(
+                            event,
+                            setFinalNote,
+                            createImageUploadUrl,
+                            resolveImageUrl,
+                            setUiFeedback,
+                            setImageUploading
+                          )
                         }
                         placeholder="補足メモ（任意）"
                         className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
                       />
-                      <p className="text-xs text-slate-500">画像URLをメモに貼ると、その場で写真表示できます。</p>
+                      <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
+                      {imageUploading ? (
+                        <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
+                      ) : null}
                       <button
                         type="submit"
-                        disabled={savingFinalDecision || !finalConclusion.trim()}
+                        disabled={savingFinalDecision || imageUploading || !finalConclusion.trim()}
                         className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {savingFinalDecision ? "確定中..." : "最終決定を保存"}
