@@ -18,6 +18,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import PaywallBanner from "@/components/room/PaywallBanner";
 import HomeScreenAddGuide from "@/components/room/HomeScreenAddGuide";
+import RoomAccountControls from "@/components/room/RoomAccountControls";
 
 interface RoomThreadPageV2Props {
   roomId: string;
@@ -561,6 +562,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
             <p className="text-xs text-slate-500">For Practical Decision</p>
           </div>
           <div className="flex flex-col items-end gap-2">
+            <RoomAccountControls />
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
                 href="/room"

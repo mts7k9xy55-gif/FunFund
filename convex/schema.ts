@@ -7,6 +7,8 @@ export default defineSchema({
     username: v.optional(v.string()),
     fullName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    displayName: v.optional(v.string()),
+    avatarEmoji: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
