@@ -1,5 +1,5 @@
 // src/components/room/CreateRoomModal.tsx
-// Room作成モーダル: プライベート設定と評価モード選択
+// Room作成モーダル
 
 "use client";
 
@@ -109,14 +109,7 @@ export default function CreateRoomModal({
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
-                <div className="text-sm font-semibold mb-1">
-                  {language === "ja" ? "オープン" : "Open"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {language === "ja"
-                    ? "公開で運用（招待なし）"
-                    : "Public room (no invite code)"}
-                </div>
+                <div className="text-sm font-semibold">{language === "ja" ? "オープン" : "Open"}</div>
               </button>
               <button
                 onClick={() => setMode("closed")}
@@ -126,13 +119,8 @@ export default function CreateRoomModal({
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
-                <div className="text-sm font-semibold mb-1">
-                  {language === "ja" ? "プライベートグループ" : "Private Group"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {language === "ja"
-                    ? "招待コードで参加"
-                    : "Invite code required"}
+                <div className="text-sm font-semibold">
+                  {language === "ja" ? "プライベート" : "Private"}
                 </div>
               </button>
             </div>

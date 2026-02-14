@@ -86,7 +86,7 @@ export default function RoomPageV2() {
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
-  const [threadType, setThreadType] = useState<"proposal" | "project">("proposal");
+  const [threadType, setThreadType] = useState<"proposal" | "comment">("proposal");
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
@@ -509,8 +509,7 @@ export default function RoomPageV2() {
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">今ある課題を解決すること</h2>
-                  <p className="text-sm text-slate-500">スレッドを選ぶと、詳細ページで大きく読み書きできます。</p>
+                  <h2 className="text-2xl font-bold text-slate-900">掲示板</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button
@@ -551,7 +550,7 @@ export default function RoomPageV2() {
                       <div className="flex items-start justify-between gap-3">
                         <p className="line-clamp-2 text-2xl font-black text-slate-900">{thread.title ?? "Untitled"}</p>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                          {thread.type === "proposal" ? "企画" : "提案"}
+                          {thread.type === "proposal" ? "企画" : "掲示板"}
                         </span>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -603,7 +602,6 @@ export default function RoomPageV2() {
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-bold text-slate-900">スレッド作成</h2>
-                    <p className="text-sm text-slate-500">1列で最小入力。タイトルと理由だけで作成できます。</p>
                   </div>
                   <button
                     type="button"
@@ -617,11 +615,11 @@ export default function RoomPageV2() {
                 <div className="space-y-3">
                   <select
                     value={threadType}
-                    onChange={(event) => setThreadType(event.target.value as "proposal" | "project")}
+                    onChange={(event) => setThreadType(event.target.value as "proposal" | "comment")}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
-                    <option value="proposal">企画（まず意見を集める）</option>
-                    <option value="project">提案（実行まで進める）</option>
+                    <option value="proposal">企画</option>
+                    <option value="comment">掲示板</option>
                   </select>
                   <input
                     value={threadTitle}

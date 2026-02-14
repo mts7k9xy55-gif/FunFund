@@ -27,7 +27,8 @@ export default function RoomSelector({
   const rooms = useQuery(api.rooms.listRoomsForMe) ?? [];
   const createRoom = useMutation(api.rooms.createRoom);
   const deleteRoom = useMutation(api.rooms.deleteRoom);
-  const selectedRoom = rooms.find((room) => room._id === selectedRoomId);
+  const effectiveSelectedRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
+  const selectedRoom = rooms.find((room) => room._id === effectiveSelectedRoomId);
 
   const handleCreateRoom = async (
     name: string,
@@ -89,7 +90,7 @@ export default function RoomSelector({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-primary text-primary-fg text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-blue-600 bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             {language === "ja" ? "Roomを作成" : "Create Room"}
           </button>
@@ -97,16 +98,13 @@ export default function RoomSelector({
       ) : (
         <div className="flex items-center gap-2">
           <select
-            value={selectedRoomId ?? ""}
+            value={effectiveSelectedRoomId ?? ""}
             onChange={(e) => {
               const roomId = e.target.value;
               onSelectRoom(roomId ? (roomId as Id<"rooms">) : null);
             }}
-            className="px-3 py-1.5 rounded-lg bg-muted border border-border text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-w-[220px] px-3 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
-            <option value="">
-              {language === "ja" ? "Roomを選択" : "Select Room"}
-            </option>
             {rooms.map((room) => (
               <option key={room._id} value={room._id}>
                 {room.name} ({room.status})
@@ -116,7 +114,7 @@ export default function RoomSelector({
           </select>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-muted text-fg text-sm font-medium hover:bg-muted/80 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
           >
             {language === "ja" ? "+ 新規" : "+ New"}
           </button>
