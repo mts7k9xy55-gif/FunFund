@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  ClipboardEvent,
+  Dispatch,
+  FormEvent,
+  ReactNode,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -22,11 +31,15 @@ function formatMessageKind(kind: "comment" | "reason" | "execution") {
 }
 
 function isImageUrl(url: string) {
+  if (url.startsWith("data:image/")) {
+    return true;
+  }
   return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url);
 }
 
 function renderBodyWithLinks(body: string) {
-  const regex = /(https?:\/\/[^\s]+)/g;
+  const regex =
+    /(https?:\/\/[^\s]+|data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+)/g;
   const elements: ReactNode[] = [];
   let lastIndex = 0;
   let index = 0;
@@ -40,21 +53,27 @@ function renderBodyWithLinks(body: string) {
       elements.push(<span key={`text-${index++}`}>{body.slice(lastIndex, start)}</span>);
     }
 
-    const trailing = rawUrl.match(/[),.!?、。]+$/)?.[0] ?? "";
+    const trailing = rawUrl.startsWith("data:image/")
+      ? ""
+      : (rawUrl.match(/[),.!?、。]+$/)?.[0] ?? "");
     const cleanUrl = trailing ? rawUrl.slice(0, rawUrl.length - trailing.length) : rawUrl;
 
     if (isImageUrl(cleanUrl)) {
       const mediaKey = `media-${index++}`;
       elements.push(
         <span key={mediaKey} className="my-3 block">
-          <a
-            href={cleanUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mb-2 block text-sm underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
-          >
-            {cleanUrl}
-          </a>
+          {cleanUrl.startsWith("data:image/") ? (
+            <p className="mb-2 block text-xs text-slate-500">貼り付け画像</p>
+          ) : (
+            <a
+              href={cleanUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mb-2 block text-sm underline decoration-blue-400 underline-offset-2 hover:text-blue-700"
+            >
+              {cleanUrl}
+            </a>
+          )}
           <a href={cleanUrl} target="_blank" rel="noreferrer noopener">
             <img
               src={cleanUrl}
@@ -98,6 +117,50 @@ function formatCurrencyYen(value: number) {
 function formatDueDate(dueAt?: number) {
   if (!dueAt) return "未設定";
   return new Date(dueAt).toLocaleDateString("ja-JP");
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleImagePasteToField(
+  event: ClipboardEvent<HTMLTextAreaElement>,
+  setField: Dispatch<SetStateAction<string>>,
+  onError: (message: string) => void
+) {
+  const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) =>
+    item.type.startsWith("image/")
+  );
+  if (!imageItem) {
+    return;
+  }
+  const imageFile = imageItem.getAsFile();
+  if (!imageFile) {
+    onError("画像の取得に失敗しました");
+    return;
+  }
+  if (imageFile.size > 2_000_000) {
+    onError("画像サイズは2MB以下にしてください");
+    event.preventDefault();
+    return;
+  }
+
+  event.preventDefault();
+  try {
+    const imageDataUrl = await fileToDataUrl(imageFile);
+    const target = event.currentTarget;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? start;
+    const inserted = `${start > 0 ? "\n" : ""}${imageDataUrl}\n`;
+    setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
+  } catch {
+    onError("画像の貼り付けに失敗しました");
+  }
 }
 
 export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2Props) {
@@ -747,6 +810,9 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                     <textarea
                       value={replyBody}
                       onChange={(event) => setReplyBody(event.target.value)}
+                      onPaste={(event) =>
+                        void handleImagePasteToField(event, setReplyBody, setUiFeedback)
+                      }
                       placeholder="返信を書く"
                       className="min-h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg leading-relaxed"
                     />
@@ -784,6 +850,9 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                       <textarea
                         value={intentReason}
                         onChange={(event) => setIntentReason(event.target.value)}
+                        onPaste={(event) =>
+                          void handleImagePasteToField(event, setIntentReason, setUiFeedback)
+                        }
                         placeholder="理由（任意）"
                         className="min-h-28 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
                       />
@@ -946,6 +1015,9 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                       <textarea
                         value={finalNote}
                         onChange={(event) => setFinalNote(event.target.value)}
+                        onPaste={(event) =>
+                          void handleImagePasteToField(event, setFinalNote, setUiFeedback)
+                        }
                         placeholder="補足メモ（任意）"
                         className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
                       />

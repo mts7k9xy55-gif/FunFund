@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 export default function Home() {
   return (
@@ -29,28 +28,15 @@ export default function Home() {
             >
               プライバシーポリシー
             </Link>
-            <SignedOut>
-              <Link
-                href="/room"
-                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                ログインして始める
-              </Link>
-            </SignedOut>
-            <SignedIn>
-              <span className="inline-flex items-center rounded-lg bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700">
-                ログイン済み: すぐに運用開始できます
-              </span>
-            </SignedIn>
           </div>
         </section>
 
         <section className="mt-8 grid gap-4 md:grid-cols-3">
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">01</p>
-            <h2 className="mt-3 text-xl font-bold text-slate-900">使えること</h2>
+            <h2 className="mt-3 text-xl font-bold text-slate-900">できること</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Room作成、Thread投稿、評価入力を最短手順で実行。現場でそのまま使える運用導線を優先。
+              Room作成、スレッド作成、意思決定ログ記録を最短手順で実行できます。
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

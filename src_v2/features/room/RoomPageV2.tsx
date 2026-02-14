@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  ClipboardEvent,
+  Dispatch,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
@@ -24,6 +31,50 @@ function formatCurrencyYen(value: number) {
   return `¥${Math.max(0, Math.round(value)).toLocaleString("ja-JP")}`;
 }
 
+async function fileToDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleImagePasteToField(
+  event: ClipboardEvent<HTMLTextAreaElement>,
+  setField: Dispatch<SetStateAction<string>>,
+  onError: (message: string) => void
+) {
+  const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) =>
+    item.type.startsWith("image/")
+  );
+  if (!imageItem) {
+    return;
+  }
+  const imageFile = imageItem.getAsFile();
+  if (!imageFile) {
+    onError("画像の取得に失敗しました");
+    return;
+  }
+  if (imageFile.size > 2_000_000) {
+    onError("画像サイズは2MB以下にしてください");
+    event.preventDefault();
+    return;
+  }
+
+  event.preventDefault();
+  try {
+    const imageDataUrl = await fileToDataUrl(imageFile);
+    const target = event.currentTarget;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? start;
+    const inserted = `${start > 0 ? "\n" : ""}${imageDataUrl}\n`;
+    setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
+  } catch {
+    onError("画像の貼り付けに失敗しました");
+  }
+}
+
 export default function RoomPageV2() {
   const { user } = useUser();
   const [isUserReady, setIsUserReady] = useState(false);
@@ -33,7 +84,6 @@ export default function RoomPageV2() {
 
   const createUserMutation = useMutation(api.users.createUser);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
-  const updateMemberRole = useMutation(api.rooms.updateMemberRole);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [threadType, setThreadType] = useState<"proposal" | "project">("proposal");
@@ -44,7 +94,6 @@ export default function RoomPageV2() {
   const [threadError, setThreadError] = useState<string | null>(null);
   const [showArchivedThreads, setShowArchivedThreads] = useState(false);
   const [uiFeedback, setUiFeedback] = useState<string | null>(null);
-  const [roleUpdatingUserId, setRoleUpdatingUserId] = useState<Id<"users"> | null>(null);
 
   const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
   const [payoutAmount, setPayoutAmount] = useState("1000");
@@ -107,13 +156,6 @@ export default function RoomPageV2() {
     isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
   );
   const roomThreads = useMemo(() => roomThreadsQuery ?? [], [roomThreadsQuery]);
-
-  const roomMembers =
-    useQuery(
-      api.rooms.listRoomMembers,
-      isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
-    ) ??
-    [];
 
   const myPayoutAccounts = useQuery(
     api.payouts.listMyPayoutAccounts,
@@ -410,38 +452,6 @@ export default function RoomPageV2() {
     }
   };
 
-  const handleChangeMemberRole = async (
-    memberUserId: Id<"users">,
-    currentRole: "owner" | "member" | "viewer",
-    nextRole: "member" | "viewer"
-  ) => {
-    if (!effectiveRoomId || !selectedRoom || currentRole === "owner" || currentRole === nextRole) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      nextRole === "viewer"
-        ? "このメンバーを閲覧専用（書き込み停止）に変更します。続けますか？"
-        : "このメンバーの書き込みを再開します。続けますか？"
-    );
-    if (!confirmed) return;
-
-    setRoleUpdatingUserId(memberUserId);
-    try {
-      await updateMemberRole({
-        roomId: effectiveRoomId,
-        memberUserId,
-        role: nextRole,
-      });
-      setUiFeedback("メンバー権限を更新しました");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "メンバー権限の更新に失敗しました";
-      setUiFeedback(message);
-    } finally {
-      setRoleUpdatingUserId(null);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -623,6 +633,9 @@ export default function RoomPageV2() {
                 <textarea
                   value={threadBody}
                   onChange={(event) => setThreadBody(event.target.value)}
+                  onPaste={(event) =>
+                    void handleImagePasteToField(event, setThreadBody, setUiFeedback)
+                  }
                   placeholder="理由・背景・論点（必須）"
                   className="mt-3 min-h-32 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base leading-relaxed"
                 />
@@ -662,45 +675,6 @@ export default function RoomPageV2() {
                 >
                   {creatingThread ? "作成中..." : "この内容で作成"}
                 </button>
-              </section>
-            ) : null}
-
-            {selectedRoom.myRole === "owner" ? (
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-base font-bold text-slate-900">参加管理（書込停止を優先）</h3>
-                <p className="mt-1 text-xs text-slate-500">除名ではなく、まず member/viewer で議論参加可否を調整します。</p>
-                <div className="mt-4 space-y-2">
-                  {roomMembers.map((member) => (
-                    <div
-                      key={member._id}
-                      className="flex flex-wrap items-center gap-2 rounded border border-slate-200 px-3 py-2"
-                    >
-                      <p className="text-sm font-medium text-slate-800">{member.userName}</p>
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                        {member.role}
-                      </span>
-                      {member.role !== "owner" ? (
-                        <select
-                          value={member.role}
-                          onChange={(event) =>
-                            handleChangeMemberRole(
-                              member.userId,
-                              member.role,
-                              event.target.value as "member" | "viewer"
-                            )
-                          }
-                          disabled={roleUpdatingUserId === member.userId}
-                          className="ml-auto rounded border border-slate-300 bg-white px-2 py-1 text-xs"
-                        >
-                          <option value="member">member（書込可）</option>
-                          <option value="viewer">viewer（閲覧のみ）</option>
-                        </select>
-                      ) : (
-                        <span className="ml-auto text-xs font-semibold text-blue-700">owner</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </section>
             ) : null}
 
