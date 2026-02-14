@@ -128,6 +128,11 @@ export default defineSchema({
       v.literal("project")
     ),
     title: v.optional(v.string()),
+    decisionOwnerId: v.optional(v.id("users")),
+    dueAt: v.optional(v.number()),
+    meetingUrl: v.optional(v.string()),
+    options: v.optional(v.array(v.string())),
+    commitmentGoalAmount: v.optional(v.number()),
     createdBy: v.id("users"),
     createdAt: v.number(),
     archivedAt: v.optional(v.number()),
@@ -259,6 +264,20 @@ export default defineSchema({
     .index("by_room", ["roomId"])
     .index("by_thread", ["threadId"])
     .index("by_createdBy", ["createdBy"]),
+
+  // Commitment（支援コミット）: threadごとにユーザーが金額コミット
+  commitments: defineTable({
+    roomId: v.id("rooms"),
+    threadId: v.id("threads"),
+    supporterUserId: v.id("users"),
+    amount: v.number(),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_thread", ["threadId"])
+    .index("by_thread_supporter", ["threadId", "supporterUserId"])
+    .index("by_supporter", ["supporterUserId"]),
 
   // 公開プレビュー用の追加情報（itemsと1:1の関係）
   publicPreviews: defineTable({

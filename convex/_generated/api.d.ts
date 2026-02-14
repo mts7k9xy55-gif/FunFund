@@ -9,6 +9,7 @@
  */
 
 import type * as _guards from "../_guards.js";
+import type * as commitments from "../commitments.js";
 import type * as connections from "../connections.js";
 import type * as decisions from "../decisions.js";
 import type * as distributions from "../distributions.js";
@@ -42,6 +43,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   _guards: typeof _guards;
+  commitments: typeof commitments;
   connections: typeof connections;
   decisions: typeof decisions;
   distributions: typeof distributions;

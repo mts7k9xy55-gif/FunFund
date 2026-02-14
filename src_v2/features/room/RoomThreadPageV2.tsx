@@ -91,6 +91,15 @@ function renderBodyWithLinks(body: string) {
   return elements.length ? elements : [<span key="text-0">{body}</span>];
 }
 
+function formatCurrencyYen(value: number) {
+  return `¥${Math.max(0, Math.round(value)).toLocaleString("ja-JP")}`;
+}
+
+function formatDueDate(dueAt?: number) {
+  if (!dueAt) return "未設定";
+  return new Date(dueAt).toLocaleDateString("ja-JP");
+}
+
 export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2Props) {
   const { user } = useUser();
   const router = useRouter();
@@ -109,6 +118,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const setIntentHidden = useMutation(api.intents.setIntentHidden);
   const deleteIntent = useMutation(api.intents.deleteIntent);
   const finalizeDecision = useMutation(api.finalDecisions.finalizeDecision);
+  const upsertCommitment = useMutation(api.commitments.upsertCommitment);
 
   const selectedRoom = useQuery(
     api.rooms.getRoom,
@@ -125,6 +135,10 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
       api.finalDecisions.listFinalDecisions,
       isUserReady ? { threadId: threadIdAsId } : "skip"
     ) ?? [];
+  const commitmentSummary = useQuery(
+    api.commitments.listThreadCommitments,
+    isUserReady ? { threadId: threadIdAsId } : "skip"
+  );
   const usersQuery = useQuery(api.users.listUsers);
   const users = useMemo(() => usersQuery ?? [], [usersQuery]);
 
@@ -142,6 +156,9 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const [finalConclusion, setFinalConclusion] = useState("");
   const [finalNote, setFinalNote] = useState("");
   const [savingFinalDecision, setSavingFinalDecision] = useState(false);
+  const [commitmentAmountInput, setCommitmentAmountInput] = useState("1000");
+  const [commitmentNoteInput, setCommitmentNoteInput] = useState("");
+  const [savingCommitment, setSavingCommitment] = useState(false);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [uiFeedback, setUiFeedback] = useState<string | null>(null);
 
@@ -198,6 +215,13 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
 
   const currentFinalDecision = finalDecisions.find((decision) => decision.isCurrent) ?? null;
   const historyFinalDecisions = finalDecisions.filter((decision) => !decision.isCurrent);
+  const commitmentRows = commitmentSummary?.commitments ?? [];
+  const commitmentTotal = commitmentSummary?.totalAmount ?? 0;
+  const commitmentSupporterCount = commitmentSummary?.supporterCount ?? 0;
+  const myCommitment =
+    currentConvexUser
+      ? commitmentRows.find((row) => row.supporterUserId === currentConvexUser._id) ?? null
+      : null;
 
   const canModerateMessage = (createdBy: Id<"users">) =>
     selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
@@ -388,6 +412,33 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
     }
   };
 
+  const handleSubmitCommitment = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedThread) return;
+    const amount = Number(commitmentAmountInput);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setUiFeedback("コミット金額は1円以上で入力してください");
+      return;
+    }
+
+    setSavingCommitment(true);
+    try {
+      await upsertCommitment({
+        roomId: selectedThread.roomId,
+        threadId: selectedThread._id,
+        amount,
+        note: commitmentNoteInput.trim() || undefined,
+      });
+      setCommitmentNoteInput("");
+      setUiFeedback("コミットを保存しました");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "コミット保存に失敗しました";
+      setUiFeedback(message);
+    } finally {
+      setSavingCommitment(false);
+    }
+  };
+
   const handleSetThreadArchived = async (threadIdValue: Id<"threads">, archived: boolean) => {
     if (selectedRoom?.myRole !== "owner") {
       setUiFeedback("オーナーのみスレッドを操作できます");
@@ -544,6 +595,56 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                     </button>
                   </div>
                 ) : null}
+              </div>
+
+              <div className="mb-8 rounded-2xl border border-blue-200 bg-blue-50/40 p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                    Decision Card
+                  </span>
+                  <span className="rounded bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    担当:{" "}
+                    {selectedThread.decisionOwnerId
+                      ? (userNameById.get(selectedThread.decisionOwnerId) ?? "Unknown")
+                      : "未設定"}
+                  </span>
+                  <span className="rounded bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    期限: {formatDueDate(selectedThread.dueAt)}
+                  </span>
+                  <span className="rounded bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    コミット {formatCurrencyYen(commitmentTotal)}
+                    {selectedThread.commitmentGoalAmount
+                      ? ` / ${formatCurrencyYen(selectedThread.commitmentGoalAmount)}`
+                      : ""}
+                  </span>
+                </div>
+                {selectedThread.meetingUrl ? (
+                  <p className="mt-3 text-sm text-slate-700">
+                    会議リンク:{" "}
+                    <a
+                      href={selectedThread.meetingUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="font-semibold text-blue-700 underline decoration-blue-400 underline-offset-2"
+                    >
+                      {selectedThread.meetingUrl}
+                    </a>
+                  </p>
+                ) : null}
+                {selectedThread.options?.length ? (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      選択肢
+                    </p>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                      {selectedThread.options.map((option, index) => (
+                        <li key={`${option}-${index}`}>{index + 1}. {option}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-500">選択肢はまだ設定されていません。</p>
+                )}
               </div>
 
               <div className="space-y-8">
@@ -745,6 +846,72 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                                 ? renderBodyWithLinks(intent.reason)
                                 : "（空の意思）"}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-xl font-black text-slate-900">コミット（資金支援）</h3>
+                    <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                      支援者 {commitmentSupporterCount}
+                    </span>
+                  </div>
+                  <p className="mb-3 text-sm text-slate-500">
+                    ここでは支払い確定ではなく、実行意思のコミットを記録します。
+                  </p>
+
+                  <form onSubmit={handleSubmitCommitment} className="space-y-2 rounded-lg border border-slate-200 p-4">
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <input
+                        value={commitmentAmountInput}
+                        onChange={(event) =>
+                          setCommitmentAmountInput(event.target.value.replace(/[^0-9]/g, ""))
+                        }
+                        placeholder="コミット金額（円）"
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={commitmentNoteInput}
+                        onChange={(event) => setCommitmentNoteInput(event.target.value)}
+                        placeholder="メモ（任意）"
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    {myCommitment ? (
+                      <p className="text-xs text-slate-500">
+                        あなたの現在のコミット: {formatCurrencyYen(myCommitment.amount)}
+                      </p>
+                    ) : null}
+                    <button
+                      type="submit"
+                      disabled={!canWriteToThread || savingCommitment || !commitmentAmountInput.trim()}
+                      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {savingCommitment ? "保存中..." : "コミットを保存"}
+                    </button>
+                  </form>
+
+                  {commitmentRows.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-500">コミットはまだありません。</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {commitmentRows.map((commitment) => (
+                        <div key={commitment._id} className="rounded-lg border border-slate-200 p-3">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="rounded bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
+                              {formatCurrencyYen(commitment.amount)}
+                            </span>
+                            <span>{commitment.supporterName}</span>
+                            <span>{new Date(commitment.updatedAt).toLocaleString("ja-JP")}</span>
+                          </div>
+                          {commitment.note ? (
+                            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                              {renderBodyWithLinks(commitment.note)}
+                            </p>
+                          ) : null}
                         </div>
                       ))}
                     </div>

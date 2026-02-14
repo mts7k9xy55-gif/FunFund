@@ -7,10 +7,23 @@ import {
   getUserOrNull,
   requireOwnerPermission,
   requireReason,
+  requireRoomMember,
   requireUser,
   requireWritePermission,
 } from "./_guards";
-import { Id } from "./_generated/dataModel";
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeOptions(options: string[] | undefined): string[] | undefined {
+  if (!options) {
+    return undefined;
+  }
+  const normalized = options.map((row) => row.trim()).filter((row) => row.length > 0);
+  return normalized.length > 0 ? normalized : undefined;
+}
 
 /**
  * Threadを作成
@@ -28,6 +41,11 @@ export const createThread = mutation({
     title: v.optional(v.string()),
     initialBody: v.string(),
     reason: v.optional(v.string()), // proposal/projectの場合は必須
+    decisionOwnerId: v.optional(v.id("users")),
+    dueAt: v.optional(v.number()),
+    meetingUrl: v.optional(v.string()),
+    options: v.optional(v.array(v.string())),
+    commitmentGoalAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -39,12 +57,32 @@ export const createThread = mutation({
     if (args.type === "proposal" || args.type === "project") {
       requireReason(args.reason, `${args.type} creation`);
     }
+    if (args.decisionOwnerId) {
+      await requireRoomMember(ctx, args.roomId, args.decisionOwnerId);
+    }
+    if (args.dueAt !== undefined && (!Number.isFinite(args.dueAt) || args.dueAt <= 0)) {
+      throw new Error("Invalid dueAt");
+    }
+    if (
+      args.commitmentGoalAmount !== undefined &&
+      (!Number.isFinite(args.commitmentGoalAmount) || args.commitmentGoalAmount <= 0)
+    ) {
+      throw new Error("Invalid commitment goal amount");
+    }
 
     // Thread作成
     const threadId = await ctx.db.insert("threads", {
       roomId: args.roomId,
       type: args.type,
-      title: args.title,
+      title: normalizeOptionalText(args.title),
+      decisionOwnerId: args.decisionOwnerId,
+      dueAt: args.dueAt,
+      meetingUrl: normalizeOptionalText(args.meetingUrl),
+      options: normalizeOptions(args.options),
+      commitmentGoalAmount:
+        args.commitmentGoalAmount !== undefined
+          ? Math.round(args.commitmentGoalAmount)
+          : undefined,
       createdBy: user._id,
       createdAt: Date.now(),
     });
@@ -117,7 +155,7 @@ export const deleteThread = mutation({
 
     await requireOwnerPermission(ctx, thread.roomId, user._id);
 
-    const [messages, decisions, executions, layerInputs, evaluations, proposals] =
+    const [messages, decisions, executions, layerInputs, evaluations, proposals, commitments] =
       await Promise.all([
         ctx.db
           .query("messages")
@@ -142,6 +180,10 @@ export const deleteThread = mutation({
         ctx.db
           .query("distributionProposals")
           .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+          .collect(),
+        ctx.db
+          .query("commitments")
+          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
           .collect(),
       ]);
 
@@ -169,6 +211,7 @@ export const deleteThread = mutation({
       ...layerInputs.map((row) => ctx.db.delete(row._id)),
       ...evaluations.map((row) => ctx.db.delete(row._id)),
       ...proposals.map((row) => ctx.db.delete(row._id)),
+      ...commitments.map((row) => ctx.db.delete(row._id)),
     ]);
 
     await ctx.db.delete(args.threadId);
@@ -210,7 +253,19 @@ export const listThreads = query({
       .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
       .collect();
 
-    return threads;
+    return await Promise.all(
+      threads.map(async (thread) => {
+        const commitments = await ctx.db
+          .query("commitments")
+          .withIndex("by_thread", (q) => q.eq("threadId", thread._id))
+          .collect();
+        return {
+          ...thread,
+          commitmentTotal: commitments.reduce((sum, row) => sum + row.amount, 0),
+          commitmentCount: commitments.length,
+        };
+      })
+    );
   },
 });
 

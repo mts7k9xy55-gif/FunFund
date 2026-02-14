@@ -20,6 +20,15 @@ function getBankAccountTypeLabel(accountType?: BankAccountType) {
   return "普通";
 }
 
+function formatCurrencyYen(value: number) {
+  return `¥${Math.max(0, Math.round(value)).toLocaleString("ja-JP")}`;
+}
+
+function formatDueDate(dueAt?: number) {
+  if (!dueAt) return null;
+  return new Date(dueAt).toLocaleDateString("ja-JP");
+}
+
 export default function RoomPageV2() {
   const { user } = useUser();
   const [isUserReady, setIsUserReady] = useState(false);
@@ -36,6 +45,11 @@ export default function RoomPageV2() {
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [threadReason, setThreadReason] = useState("");
+  const [threadDecisionOwnerId, setThreadDecisionOwnerId] = useState<Id<"users"> | "">("");
+  const [threadDueDateInput, setThreadDueDateInput] = useState("");
+  const [threadMeetingUrl, setThreadMeetingUrl] = useState("");
+  const [threadOptionsInput, setThreadOptionsInput] = useState("");
+  const [threadCommitmentGoalInput, setThreadCommitmentGoalInput] = useState("");
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
   const [threadError, setThreadError] = useState<string | null>(null);
@@ -111,6 +125,13 @@ export default function RoomPageV2() {
       isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
     ) ??
     [];
+  const memberNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of roomMembers) {
+      map.set(member.userId, member.userName);
+    }
+    return map;
+  }, [roomMembers]);
 
   const myPayoutAccounts = useQuery(
     api.payouts.listMyPayoutAccounts,
@@ -541,6 +562,30 @@ export default function RoomPageV2() {
                           {thread.type === "proposal" ? "企画" : "提案"}
                         </span>
                       </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                          担当: {thread.decisionOwnerId ? (memberNameById.get(thread.decisionOwnerId) ?? "未設定") : "未設定"}
+                        </span>
+                        <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                          期限: {formatDueDate(thread.dueAt) ?? "未設定"}
+                        </span>
+                        <span className="rounded bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          コミット {formatCurrencyYen(thread.commitmentTotal ?? 0)}
+                          {thread.commitmentGoalAmount
+                            ? ` / ${formatCurrencyYen(thread.commitmentGoalAmount)}`
+                            : ""}
+                        </span>
+                        {thread.commitmentCount ? (
+                          <span className="rounded bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            支援者 {thread.commitmentCount}
+                          </span>
+                        ) : null}
+                      </div>
+                      {thread.options?.length ? (
+                        <p className="mt-3 line-clamp-2 text-xs text-slate-600">
+                          選択肢: {thread.options.join(" / ")}
+                        </p>
+                      ) : null}
                       <p className="mt-4 text-xs text-slate-500">
                         作成: {new Date(thread.createdAt).toLocaleString("ja-JP")}
                       </p>
@@ -629,6 +674,48 @@ export default function RoomPageV2() {
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <select
+                    value={threadDecisionOwnerId}
+                    onChange={(event) => setThreadDecisionOwnerId(event.target.value as Id<"users"> | "")}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">決定担当者（未設定）</option>
+                    {roomMembers.map((member) => (
+                      <option key={member._id} value={member.userId}>
+                        {member.userName} ({member.role})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={threadDueDateInput}
+                    onChange={(event) => setThreadDueDateInput(event.target.value)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <input
+                    value={threadMeetingUrl}
+                    onChange={(event) => setThreadMeetingUrl(event.target.value)}
+                    placeholder="会議リンク（Zoom / Meet）"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                  <input
+                    value={threadCommitmentGoalInput}
+                    onChange={(event) =>
+                      setThreadCommitmentGoalInput(event.target.value.replace(/[^0-9]/g, ""))
+                    }
+                    placeholder="目標コミット金額（円）"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <textarea
+                  value={threadOptionsInput}
+                  onChange={(event) => setThreadOptionsInput(event.target.value)}
+                  placeholder={"選択肢（改行区切り）\n例)\nA: 2週間でMVP公開\nB: 4週間で検証付き公開\nC: 一旦保留"}
+                  className="mt-3 min-h-24 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed"
+                />
                 <textarea
                   value={threadBody}
                   onChange={(event) => setThreadBody(event.target.value)}
@@ -646,17 +733,50 @@ export default function RoomPageV2() {
                     setCreatingThread(true);
                     setThreadError(null);
                     try {
+                      const dueAt = threadDueDateInput
+                        ? new Date(`${threadDueDateInput}T23:59:59`).getTime()
+                        : undefined;
+                      if (threadDueDateInput && (!dueAt || Number.isNaN(dueAt))) {
+                        throw new Error("期限日が不正です");
+                      }
+
+                      const commitmentGoalAmount = threadCommitmentGoalInput.trim()
+                        ? Number(threadCommitmentGoalInput)
+                        : undefined;
+                      if (
+                        commitmentGoalAmount !== undefined &&
+                        (!Number.isFinite(commitmentGoalAmount) || commitmentGoalAmount <= 0)
+                      ) {
+                        throw new Error("目標コミット金額は1円以上で入力してください");
+                      }
+
+                      const options = threadOptionsInput
+                        .split("\n")
+                        .map((row) => row.trim())
+                        .filter((row) => row.length > 0)
+                        .slice(0, 6);
+
                       const newThreadId = await createThreadV2({
                         roomId: effectiveRoomId,
                         type: threadType,
                         title: threadTitle.trim(),
                         initialBody: threadReason.trim() || "スレッドを開始しました。",
                         reason: threadBody.trim(),
+                        decisionOwnerId: threadDecisionOwnerId || undefined,
+                        dueAt,
+                        meetingUrl: threadMeetingUrl.trim() || undefined,
+                        options: options.length ? options : undefined,
+                        commitmentGoalAmount,
                       });
 
                       setThreadTitle("");
                       setThreadBody("");
                       setThreadReason("");
+                      setThreadDecisionOwnerId("");
+                      setThreadDueDateInput("");
+                      setThreadMeetingUrl("");
+                      setThreadOptionsInput("");
+                      setThreadCommitmentGoalInput("");
                       setIsThreadComposerOpen(false);
                       setUiFeedback("スレッドを作成しました");
 
