@@ -37,10 +37,10 @@ export default function Home() {
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-700">02</p>
-            <h2 className="mt-3 text-[2.05rem] font-bold leading-tight text-slate-900">
+            <h2 className="mt-3 text-2xl font-bold text-slate-900">
               建設的な議論・意思決定
             </h2>
-            <p className="mt-3 text-lg leading-8 text-slate-600">
+            <p className="mt-3 text-base leading-8 text-slate-600">
               提案理由と評価理由を明示して、判断を記録。誰が何を根拠に決めたかを残せます。
             </p>
           </article>
