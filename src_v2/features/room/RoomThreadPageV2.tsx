@@ -25,13 +25,6 @@ interface RoomThreadPageV2Props {
   threadId: string;
 }
 
-type SafeThreadDetail = {
-  thread: any;
-  messages: any[];
-  decisions: any[];
-  executions: any[];
-};
-
 class ThreadPageErrorBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean }
@@ -237,16 +230,22 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const roomsForMe = useQuery(api.rooms.listRoomsForMe, isUserReady ? {} : "skip");
+  const roomThreadsQuery = useQuery(
+    api.threads.listThreads,
+    isUserReady ? { roomId } : "skip"
+  );
+  const roomThreads = useMemo(() => roomThreadsQuery ?? [], [roomThreadsQuery]);
   const selectedRoom = useMemo(() => {
     if (roomsForMe === undefined) {
       return undefined;
     }
     return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
   }, [roomsForMe, roomIdAsId]);
-  const threadDetail = useQuery(
-    api.threadView.getThreadView,
+  const threadMessagesQuery = useQuery(
+    api.messages.listThreadMessages,
     isUserReady ? { threadId } : "skip"
-  ) as SafeThreadDetail | null | undefined;
+  );
+  const threadMessages = useMemo(() => threadMessagesQuery ?? [], [threadMessagesQuery]);
   const intents =
     useQuery(api.intents.listIntents, isUserReady ? { threadId } : "skip") ?? [];
   const finalDecisions =
@@ -316,8 +315,10 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     return map;
   }, [users]);
 
-  const selectedThread = threadDetail?.thread ?? null;
-  const threadMessages = useMemo(() => threadDetail?.messages ?? [], [threadDetail]);
+  const selectedThread = useMemo(
+    () => roomThreads.find((thread) => thread._id === threadIdAsId) ?? null,
+    [roomThreads, threadIdAsId]
+  );
 
   const reasonMessages = useMemo(
     () => threadMessages.filter((message) => message.kind === "reason"),
@@ -347,8 +348,12 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const canWriteToThread = Boolean(
     selectedRoom?.myRole !== "viewer" && !selectedThread?.archivedAt
   );
-  const isLoading = !isUserReady || selectedRoom === undefined || threadDetail === undefined;
-  const isMissing = selectedRoom === null || threadDetail === null;
+  const isLoading =
+    !isUserReady ||
+    selectedRoom === undefined ||
+    roomThreadsQuery === undefined ||
+    threadMessagesQuery === undefined;
+  const isMissing = selectedRoom === null || selectedThread === null;
   const isRoomThreadMismatch = Boolean(
     selectedRoom && selectedThread && selectedThread.roomId !== selectedRoom._id
   );

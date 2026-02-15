@@ -2,8 +2,8 @@
 // コメント投稿: 書き込みガード適用
 
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
-import { requireRoomMember, requireUser, requireWritePermission } from "./_guards";
+import { mutation, query } from "./_generated/server";
+import { getUserOrNull, requireRoomMember, requireUser, requireWritePermission } from "./_guards";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -107,5 +107,66 @@ export const deleteMessage = mutation({
 
     await ctx.db.delete(args.messageId);
     return args.messageId;
+  },
+});
+
+export const listThreadMessages = query({
+  args: {
+    threadId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    let normalizedThreadId = null;
+    try {
+      normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    } catch {
+      return [];
+    }
+    if (!normalizedThreadId) {
+      return [];
+    }
+
+    const user = await getUserOrNull(ctx);
+    if (!user) {
+      return [];
+    }
+
+    const thread = await ctx.db.get(normalizedThreadId);
+    if (!thread) {
+      return [];
+    }
+
+    const membership = await (async () => {
+      try {
+        return await requireRoomMember(ctx, thread.roomId, user._id);
+      } catch {
+        return null;
+      }
+    })();
+    if (!membership) {
+      return [];
+    }
+
+    const decisions = await ctx.db
+      .query("decisions")
+      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+      .collect();
+    const legacyDecisionReasonIds = new Set(decisions.map((decision) => decision.reasonMessageId));
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+      .collect();
+
+    return messages
+      .filter((message) => {
+        if (message.kind === "reason" && legacyDecisionReasonIds.has(message._id)) {
+          return false;
+        }
+        if (!message.hiddenAt) {
+          return true;
+        }
+        return membership.role === "owner" || message.createdBy === user._id;
+      })
+      .sort((a, b) => a.createdAt - b.createdAt);
   },
 });
