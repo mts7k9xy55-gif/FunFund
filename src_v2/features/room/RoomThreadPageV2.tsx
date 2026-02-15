@@ -187,10 +187,13 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
-  const selectedRoom = useQuery(
-    api.rooms.getRoom,
-    isUserReady ? { roomId: roomIdAsId } : "skip"
-  );
+  const roomsForMe = useQuery(api.rooms.listRoomsForMe, isUserReady ? {} : "skip");
+  const selectedRoom = useMemo(() => {
+    if (roomsForMe === undefined) {
+      return undefined;
+    }
+    return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
+  }, [roomsForMe, roomIdAsId]);
   const threadDetail = useQuery(
     api.threads.getThread,
     isUserReady ? { threadId: threadIdAsId } : "skip"
