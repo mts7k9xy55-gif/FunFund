@@ -3,7 +3,9 @@
 import Link from "next/link";
 import {
   ClipboardEvent,
+  Component,
   Dispatch,
+  ErrorInfo,
   FormEvent,
   ReactNode,
   SetStateAction,
@@ -21,6 +23,46 @@ import RoomAccountControls from "@/components/room/RoomAccountControls";
 interface RoomThreadPageV2Props {
   roomId: string;
   threadId: string;
+}
+
+class ThreadPageErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    // no-op: ユーザー向けにはfallbackのみ表示
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb] p-6">
+          <div className="mx-auto w-full max-w-[980px] rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-black text-slate-900">スレッドを表示できませんでした</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              読み込み中に問題が発生しました。部屋一覧から開き直してください。
+            </p>
+            <a
+              href="/room"
+              className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              部屋に戻る
+            </a>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function formatMessageKind(kind: "comment" | "reason" | "execution") {
@@ -165,7 +207,7 @@ async function handleImagePasteToField(
   }
 }
 
-export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2Props) {
+function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const { user } = useUser();
   const router = useRouter();
   const [isUserReady, setIsUserReady] = useState(false);
@@ -1171,5 +1213,13 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function RoomThreadPageV2(props: RoomThreadPageV2Props) {
+  return (
+    <ThreadPageErrorBoundary>
+      <RoomThreadPageV2Content {...props} />
+    </ThreadPageErrorBoundary>
   );
 }
