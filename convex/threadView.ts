@@ -120,7 +120,7 @@ export const getThreadView = query({
         : undefined,
       commitmentGoalAmount: safeNumber(rawThread.commitmentGoalAmount),
       createdBy: rawThread.createdBy,
-      createdAt: safeNumber(rawThread.createdAt) ?? Date.now(),
+      createdAt: safeNumber(rawThread.createdAt) ?? 0,
       archivedAt: safeNumber(rawThread.archivedAt),
       archivedBy: rawThread.archivedBy,
     });
@@ -143,7 +143,7 @@ export const getThreadView = query({
           kind: message.kind,
           body: safeString(message.body) ?? "",
           createdBy: message.createdBy,
-          createdAt: safeNumber(message.createdAt) ?? Date.now(),
+          createdAt: safeNumber(message.createdAt) ?? 0,
           hiddenAt: safeNumber(message.hiddenAt),
           hiddenBy: message.hiddenBy,
         })
@@ -165,7 +165,7 @@ export const getThreadView = query({
       })
       .map((decision) => ({
         ...decision,
-        createdAt: safeNumber(decision.createdAt) ?? Date.now(),
+        createdAt: safeNumber(decision.createdAt) ?? 0,
       }));
 
     const executions = await (async () => {
@@ -176,7 +176,7 @@ export const getThreadView = query({
           .collect();
         return rows.map((row) => ({
           ...row,
-          createdAt: safeNumber(row.createdAt) ?? Date.now(),
+          createdAt: safeNumber(row.createdAt) ?? 0,
         }));
       } catch {
         return [];

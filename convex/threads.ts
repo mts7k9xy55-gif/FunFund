@@ -297,7 +297,7 @@ export const listThreads = query({
               : undefined,
             commitmentGoalAmount: safeNumber(thread.commitmentGoalAmount),
             createdBy: thread.createdBy,
-            createdAt: safeNumber(thread.createdAt) ?? Date.now(),
+            createdAt: safeNumber(thread.createdAt) ?? 0,
             archivedAt: safeNumber(thread.archivedAt),
             archivedBy: thread.archivedBy,
           }),
