@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import RoomSelector from "@/components/room/RoomSelector";
@@ -89,6 +90,8 @@ async function handleImagePasteToField(
 
 export default function RoomPageV2() {
   const { user } = useUser();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isUserReady, setIsUserReady] = useState(false);
 
   const roomsQuery = useQuery(api.rooms.listRoomsForMe, isUserReady ? {} : "skip");
@@ -96,10 +99,13 @@ export default function RoomPageV2() {
 
   const createUserMutation = useMutation(api.users.createUser);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
+  const joinRoomByInviteCode = useMutation(api.rooms.joinRoomByInviteCode);
   const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [joiningByInviteCode, setJoiningByInviteCode] = useState(false);
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
@@ -129,6 +135,7 @@ export default function RoomPageV2() {
   const [workingAction, setWorkingAction] = useState<string | null>(null);
   const [accountCopiedMessage, setAccountCopiedMessage] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
+  const [roomSelectionMessage, setRoomSelectionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,7 +166,17 @@ export default function RoomPageV2() {
     };
   }, [user?.id, user?.fullName, user?.firstName, createUserMutation]);
 
-  const effectiveRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
+  useEffect(() => {
+    const invite = searchParams.get("invite");
+    if (!invite) return;
+    const normalized = invite.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    if (normalized) {
+      setInviteCodeInput(normalized);
+      setRoomSelectionMessage(`招待コード ${normalized} で参加できます`);
+    }
+  }, [searchParams]);
+
+  const effectiveRoomId = selectedRoomId;
   const selectedRoom = useMemo(
     () => (effectiveRoomId ? rooms.find((room) => room._id === effectiveRoomId) ?? null : null),
     [effectiveRoomId, rooms]
@@ -464,6 +481,41 @@ export default function RoomPageV2() {
     }
   };
 
+  const handleCopyInviteCode = async () => {
+    if (!selectedRoom?.inviteCode || !navigator?.clipboard) {
+      setInviteMessage("招待コードをコピーできませんでした");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(selectedRoom.inviteCode);
+      setInviteMessage("招待コードをコピーしました");
+    } catch {
+      setInviteMessage("招待コードのコピーに失敗しました");
+    }
+  };
+
+  const handleJoinWithCode = async () => {
+    const normalized = inviteCodeInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    if (!normalized) {
+      setRoomSelectionMessage("招待コードを入力してください");
+      return;
+    }
+    setJoiningByInviteCode(true);
+    setRoomSelectionMessage(null);
+    try {
+      const roomId = await joinRoomByInviteCode({ inviteCode: normalized });
+      setSelectedRoomId(roomId);
+      setInviteCodeInput("");
+      router.replace("/room");
+      setRoomSelectionMessage("部屋に参加しました");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "参加に失敗しました";
+      setRoomSelectionMessage(message);
+    } finally {
+      setJoiningByInviteCode(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -493,7 +545,7 @@ export default function RoomPageV2() {
                     }}
                     className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                   >
-                    DMで共有
+                    共有シートを開く
                   </button>
                   <button
                     type="button"
@@ -504,6 +556,16 @@ export default function RoomPageV2() {
                     className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     リンクをコピー
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (event) => {
+                      await handleCopyInviteCode();
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }}
+                    className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    招待コードをコピー
                   </button>
                 </div>
               </details>
@@ -519,8 +581,49 @@ export default function RoomPageV2() {
             読み込み中...
           </div>
         ) : !effectiveRoomId || !selectedRoom ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-600">
-            Roomを作成するか、既存のRoomを選択してください。
+          <div className="space-y-4">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-bold text-slate-900">部屋を選択</h2>
+              <p className="mt-1 text-sm text-slate-500">参加済みの部屋を選ぶか、招待コードで参加してください。</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {rooms.map((room) => (
+                  <button
+                    key={room._id}
+                    type="button"
+                    onClick={() => setSelectedRoomId(room._id)}
+                    className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm"
+                  >
+                    <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {room.isPrivate ? "プライベート" : "オープン"} / {room.myRole}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900">招待コードで参加</h3>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <input
+                  value={inviteCodeInput}
+                  onChange={(event) =>
+                    setInviteCodeInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))
+                  }
+                  placeholder="8文字の招待コード"
+                  className="w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleJoinWithCode()}
+                  disabled={joiningByInviteCode || inviteCodeInput.trim().length < 4}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {joiningByInviteCode ? "参加中..." : "参加する"}
+                </button>
+              </div>
+              {roomSelectionMessage ? <p className="mt-2 text-sm text-slate-600">{roomSelectionMessage}</p> : null}
+            </section>
           </div>
         ) : (
           <div className="space-y-6">

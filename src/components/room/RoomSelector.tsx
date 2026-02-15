@@ -27,8 +27,8 @@ export default function RoomSelector({
   const rooms = useQuery(api.rooms.listRoomsForMe) ?? [];
   const createRoom = useMutation(api.rooms.createRoom);
   const deleteRoom = useMutation(api.rooms.deleteRoom);
-  const effectiveSelectedRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
-  const selectedRoom = rooms.find((room) => room._id === effectiveSelectedRoomId);
+  const effectiveSelectedRoomId = selectedRoomId ?? null;
+  const selectedRoom = rooms.find((room) => room._id === selectedRoomId);
 
   const handleCreateRoom = async (
     name: string,
@@ -105,6 +105,9 @@ export default function RoomSelector({
             }}
             className="min-w-[220px] px-3 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
+            <option value="" disabled>
+              {language === "ja" ? "部屋を選択" : "Select room"}
+            </option>
             {rooms.map((room) => (
               <option key={room._id} value={room._id}>
                 {room.name}

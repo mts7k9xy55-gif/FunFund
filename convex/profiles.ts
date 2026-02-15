@@ -2,18 +2,16 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUser } from "./_guards";
 
-const DEFAULT_AVATAR = "🙂";
-
 function normalizeDisplayName(input?: string) {
   const value = input?.trim();
   if (!value) return undefined;
   return value.slice(0, 40);
 }
 
-function normalizeAvatarEmoji(input?: string) {
+function normalizeAvatarUrl(input?: string) {
   const value = input?.trim();
   if (!value) return undefined;
-  return value.slice(0, 8);
+  return value.slice(0, 1000);
 }
 
 // Create a new profile
@@ -105,7 +103,7 @@ export const getMyProfile = query({
     return {
       profileId: profile?._id ?? null,
       displayName: profile?.displayName ?? user?.name ?? identity.name ?? null,
-      avatarEmoji: profile?.avatarEmoji ?? DEFAULT_AVATAR,
+      avatarUrl: profile?.avatarUrl ?? null,
     };
   },
 });
@@ -113,13 +111,13 @@ export const getMyProfile = query({
 export const upsertMyProfile = mutation({
   args: {
     displayName: v.optional(v.string()),
-    avatarEmoji: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     const now = Date.now();
     const displayName = normalizeDisplayName(args.displayName);
-    const avatarEmoji = normalizeAvatarEmoji(args.avatarEmoji);
+    const avatarUrl = normalizeAvatarUrl(args.avatarUrl);
 
     const existing = await ctx.db
       .query("profiles")
@@ -130,20 +128,20 @@ export const upsertMyProfile = mutation({
       const patch: {
         updatedAt: number;
         displayName?: string;
-        avatarEmoji?: string;
+        avatarUrl?: string;
       } = { updatedAt: now };
       if (displayName !== undefined) {
         patch.displayName = displayName;
       }
-      if (avatarEmoji !== undefined) {
-        patch.avatarEmoji = avatarEmoji;
+      if (avatarUrl !== undefined) {
+        patch.avatarUrl = avatarUrl;
       }
       await ctx.db.patch(existing._id, patch);
     } else {
       await ctx.db.insert("profiles", {
         userId: me.userId,
         displayName,
-        avatarEmoji,
+        avatarUrl,
         createdAt: now,
         updatedAt: now,
       });
@@ -155,7 +153,7 @@ export const upsertMyProfile = mutation({
 
     return {
       displayName: displayName ?? existing?.displayName ?? me.name ?? null,
-      avatarEmoji: avatarEmoji ?? existing?.avatarEmoji ?? DEFAULT_AVATAR,
+      avatarUrl: avatarUrl ?? existing?.avatarUrl ?? null,
     };
   },
 });

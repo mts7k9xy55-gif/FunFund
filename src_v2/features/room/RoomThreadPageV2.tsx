@@ -346,6 +346,19 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
     }
   };
 
+  const handleCopyInviteCode = async () => {
+    if (!selectedRoom?.inviteCode || !navigator?.clipboard) {
+      setInviteMessage("招待コードをコピーできませんでした");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(selectedRoom.inviteCode);
+      setInviteMessage("招待コードをコピーしました");
+    } catch {
+      setInviteMessage("招待コードのコピーに失敗しました");
+    }
+  };
+
   const handleToggleMessageHidden = async (messageId: Id<"messages">, hidden: boolean) => {
     setMessageActionId(messageId);
     try {
@@ -580,7 +593,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                       }}
                       className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
-                      DMで共有
+                      共有シートを開く
                     </button>
                     <button
                       type="button"
@@ -591,6 +604,16 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                       className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       リンクをコピー
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async (event) => {
+                        await handleCopyInviteCode();
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      招待コードをコピー
                     </button>
                   </div>
                 </details>
