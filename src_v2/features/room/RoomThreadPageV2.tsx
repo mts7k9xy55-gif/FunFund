@@ -71,6 +71,20 @@ function formatMessageKind(kind: "comment" | "reason" | "execution") {
   return "返信";
 }
 
+type ReplyTone = "意見" | "反論" | "質問";
+
+function parseReplyTone(body: string): { tone: ReplyTone | null; text: string } {
+  const normalized = body.trim();
+  const matched = normalized.match(/^【(意見|反論|質問)】\s*/);
+  if (!matched) {
+    return { tone: null, text: body };
+  }
+  return {
+    tone: matched[1] as ReplyTone,
+    text: normalized.slice(matched[0].length),
+  };
+}
+
 function isImageUrl(url: string) {
   return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url);
 }
@@ -145,11 +159,6 @@ function formatCurrencyYen(value: number) {
   return `¥${Math.max(0, Math.round(value)).toLocaleString("ja-JP")}`;
 }
 
-function formatDueDate(dueAt?: number) {
-  if (!dueAt) return "未設定";
-  return new Date(dueAt).toLocaleDateString("ja-JP");
-}
-
 async function handleImagePasteToField(
   event: ClipboardEvent<HTMLTextAreaElement>,
   setField: Dispatch<SetStateAction<string>>,
@@ -221,10 +230,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const deleteMessage = useMutation(api.messages.deleteMessage);
   const setThreadArchived = useMutation(api.threads.setThreadArchived);
   const deleteThread = useMutation(api.threads.deleteThread);
-  const createIntent = useMutation(api.intents.createIntent);
-  const setIntentHidden = useMutation(api.intents.setIntentHidden);
-  const deleteIntent = useMutation(api.intents.deleteIntent);
-  const finalizeDecision = useMutation(api.finalDecisions.finalizeDecision);
   const upsertCommitment = useMutation(api.commitments.upsertCommitment);
   const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
@@ -257,33 +262,34 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     isUserReady ? { threadId } : "skip"
   );
   const threadMessages = useMemo(() => threadMessagesQuery ?? [], [threadMessagesQuery]);
-  const intents =
-    useQuery(api.intents.listIntents, isUserReady ? { threadId } : "skip") ?? [];
-  const finalDecisions =
-    useQuery(api.finalDecisions.listFinalDecisions, isUserReady ? { threadId } : "skip") ?? [];
   const commitmentSummary =
     useQuery(api.commitments.listThreadCommitments, isUserReady ? { threadId } : "skip") ?? null;
+  const myPayoutAccounts =
+    useQuery(api.payouts.listMyPayoutAccounts, isUserReady ? {} : "skip") ?? [];
   const usersQuery = useQuery(api.users.listUsers);
   const users = useMemo(() => usersQuery ?? [], [usersQuery]);
 
   const [dangerArmedThreadId, setDangerArmedThreadId] = useState<Id<"threads"> | null>(null);
   const [threadActionId, setThreadActionId] = useState<Id<"threads"> | null>(null);
   const [messageActionId, setMessageActionId] = useState<Id<"messages"> | null>(null);
-  const [intentActionId, setIntentActionId] = useState<Id<"intents"> | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [replyBody, setReplyBody] = useState("");
+  const [replyTone, setReplyTone] = useState<ReplyTone>("意見");
   const [postingReply, setPostingReply] = useState(false);
-  const [intentScoreInput, setIntentScoreInput] = useState("");
-  const [intentReason, setIntentReason] = useState("");
-  const [isIntentComposerOpen, setIsIntentComposerOpen] = useState(false);
-  const [postingIntent, setPostingIntent] = useState(false);
-  const [isFinalDecisionComposerOpen, setIsFinalDecisionComposerOpen] = useState(false);
-  const [finalConclusion, setFinalConclusion] = useState("");
-  const [finalNote, setFinalNote] = useState("");
-  const [savingFinalDecision, setSavingFinalDecision] = useState(false);
   const [commitmentAmountInput, setCommitmentAmountInput] = useState("1000");
   const [commitmentNoteInput, setCommitmentNoteInput] = useState("");
   const [savingCommitment, setSavingCommitment] = useState(false);
+  const [bankNameInput, setBankNameInput] = useState("");
+  const [bankCodeInput, setBankCodeInput] = useState("");
+  const [branchNameInput, setBranchNameInput] = useState("");
+  const [branchCodeInput, setBranchCodeInput] = useState("");
+  const [accountTypeInput, setAccountTypeInput] = useState<"ordinary" | "checking" | "savings">(
+    "ordinary"
+  );
+  const [accountNumberInput, setAccountNumberInput] = useState("");
+  const [accountHolderNameInput, setAccountHolderNameInput] = useState("");
+  const [savingBank, setSavingBank] = useState(false);
+  const [bankFeedback, setBankFeedback] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [uiFeedback, setUiFeedback] = useState<string | null>(null);
 
@@ -335,20 +341,18 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     [threadMessages]
   );
 
-  const currentFinalDecision = finalDecisions.find((decision) => decision.isCurrent) ?? null;
-  const historyFinalDecisions = finalDecisions.filter((decision) => !decision.isCurrent);
   const commitmentRows = commitmentSummary?.commitments ?? [];
   const commitmentTotal = commitmentSummary?.totalAmount ?? 0;
   const commitmentSupporterCount = commitmentSummary?.supporterCount ?? 0;
+  const activeBankAccount = myPayoutAccounts.find(
+    (account) => account.method === "bank_account" && account.status === "active"
+  );
   const myCommitment =
     currentConvexUser
       ? commitmentRows.find((row) => row.supporterUserId === currentConvexUser._id) ?? null
       : null;
 
   const canModerateMessage = (createdBy: Id<"users">) =>
-    selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
-
-  const canModerateIntent = (createdBy: Id<"users">) =>
     selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
 
   const canWriteToThread = Boolean(
@@ -448,10 +452,11 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
 
     setPostingReply(true);
     try {
+      const normalizedBody = replyBody.trim();
       await postComment({
         roomId: selectedThread.roomId,
         threadId: selectedThread._id,
-        body: replyBody.trim(),
+        body: `【${replyTone}】 ${normalizedBody}`,
       });
       setReplyBody("");
     } catch (error) {
@@ -462,89 +467,42 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     }
   };
 
-  const handleSubmitIntent = async (event: FormEvent) => {
+  const handleSaveBankAccount = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedThread || !selectedRoom) return;
-
-    const scoreText = intentScoreInput.trim();
-    let score: number | undefined;
-    if (scoreText) {
-      score = Number(scoreText);
-      if (!Number.isFinite(score) || score < 1 || score > 10) {
-        setUiFeedback("意思スコアは1-10で入力してください");
-        return;
-      }
-    }
-
-    setPostingIntent(true);
-    try {
-      await createIntent({
-        roomId: selectedRoom._id,
-        threadId: selectedThread._id,
-        score,
-        reason: intentReason.trim() || undefined,
-      });
-      setIntentScoreInput("");
-      setIntentReason("");
-      setIsIntentComposerOpen(false);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "意思の投稿に失敗しました";
-      setUiFeedback(message);
-    } finally {
-      setPostingIntent(false);
-    }
-  };
-
-  const handleToggleIntentHidden = async (intentId: Id<"intents">, hidden: boolean) => {
-    setIntentActionId(intentId);
-    try {
-      await setIntentHidden({ intentId, hidden });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "意思表示状態の更新に失敗しました";
-      setUiFeedback(message);
-    } finally {
-      setIntentActionId(null);
-    }
-  };
-
-  const handleDeleteIntent = async (intentId: Id<"intents">) => {
-    const confirmed = window.confirm("この意思を削除します。元に戻せません。");
-    if (!confirmed) return;
-
-    setIntentActionId(intentId);
-    try {
-      await deleteIntent({ intentId });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "意思削除に失敗しました";
-      setUiFeedback(message);
-    } finally {
-      setIntentActionId(null);
-    }
-  };
-
-  const handleFinalizeDecision = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!selectedThread || !finalConclusion.trim()) {
-      setUiFeedback("最終決定の結論を入力してください");
+    const bankName = bankNameInput.trim();
+    const accountNumber = accountNumberInput.replace(/[^0-9]/g, "");
+    if (!bankName || accountNumber.length < 4 || accountNumber.length > 8) {
+      setBankFeedback("銀行名と口座番号(4-8桁)を入力してください");
       return;
     }
 
-    setSavingFinalDecision(true);
+    setSavingBank(true);
+    setBankFeedback(null);
     try {
-      await finalizeDecision({
-        threadId: selectedThread._id,
-        conclusion: finalConclusion.trim(),
-        note: finalNote.trim() || undefined,
+      const response = await fetch("/api/payouts/bank/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bankName,
+          bankCode: bankCodeInput.trim() || undefined,
+          branchName: branchNameInput.trim() || undefined,
+          branchCode: branchCodeInput.trim() || undefined,
+          accountType: accountTypeInput,
+          accountNumber,
+          accountHolderName: accountHolderNameInput.trim() || undefined,
+          isDefault: true,
+        }),
       });
-      setFinalConclusion("");
-      setFinalNote("");
-      setIsFinalDecisionComposerOpen(false);
-      setUiFeedback("最終決定を確定しました");
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "口座接続に失敗しました");
+      }
+      setBankFeedback("銀行口座を接続しました");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "最終決定の確定に失敗しました";
-      setUiFeedback(message);
+      const message = error instanceof Error ? error.message : "口座接続に失敗しました";
+      setBankFeedback(message);
     } finally {
-      setSavingFinalDecision(false);
+      setSavingBank(false);
     }
   };
 
@@ -647,12 +605,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Link
-                href="/room"
-                className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                部屋選択に戻る
-              </Link>
               <RoomAccountControls />
               {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
                 <details className="relative">
@@ -771,16 +723,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
               <div className="mb-8 rounded-2xl border border-blue-200 bg-blue-50/40 p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                    Decision Card
-                  </span>
-                  <span className="rounded bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                    担当:{" "}
-                    {selectedThread.decisionOwnerId
-                      ? (userNameById.get(selectedThread.decisionOwnerId) ?? "Unknown")
-                      : "未設定"}
-                  </span>
-                  <span className="rounded bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                    期限: {formatDueDate(selectedThread.dueAt)}
+                    企画カード
                   </span>
                   <span className="rounded bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                     コミット {formatCurrencyYen(commitmentTotal)}
@@ -789,33 +732,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                       : ""}
                   </span>
                 </div>
-                {selectedThread.meetingUrl ? (
-                  <p className="mt-3 text-sm text-slate-700">
-                    会議リンク:{" "}
-                    <a
-                      href={selectedThread.meetingUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="font-semibold text-blue-700 underline decoration-blue-400 underline-offset-2"
-                    >
-                      {selectedThread.meetingUrl}
-                    </a>
-                  </p>
-                ) : null}
-                {selectedThread.options?.length ? (
-                  <div className="mt-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      選択肢
-                    </p>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                      {selectedThread.options.map((option: string, index: number) => (
-                        <li key={`${option}-${index}`}>{index + 1}. {option}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-slate-500">選択肢はまだ設定されていません。</p>
-                )}
               </div>
 
               <div className="space-y-8">
@@ -868,15 +784,22 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                 </div>
 
                 <div>
-                  <h3 className="mb-3 text-xl font-black text-slate-900">返信</h3>
+                  <h3 className="mb-3 text-xl font-black text-slate-900">反論・意見・返信</h3>
                   {replyMessages.length === 0 ? (
-                    <p className="text-sm text-slate-500">まだ返信はありません。</p>
+                    <p className="text-sm text-slate-500">まだ投稿はありません。</p>
                   ) : (
                     <div className="space-y-3">
                       {replyMessages.map((message) => (
                         <div key={message._id} className="rounded-lg border border-slate-200 p-4">
+                          {(() => {
+                            const parsedReply = parseReplyTone(message.body ?? "");
+                            return (
+                              <>
                           <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
                             <span className="rounded bg-slate-100 px-2 py-0.5">{formatMessageKind(message.kind)}</span>
+                            <span className="rounded bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">
+                              {parsedReply.tone ?? "返信"}
+                            </span>
                             <span>{userNameById.get(message.createdBy) ?? "Unknown"}</span>
                             {message.hiddenAt ? (
                               <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">非表示</span>
@@ -907,14 +830,33 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                           <div className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
                             {message.hiddenAt
                               ? "この返信は非表示になっています。"
-                              : renderBodyWithLinks(message.body)}
+                              : renderBodyWithLinks(parsedReply.text || message.body)}
                           </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
                   )}
 
                   <form onSubmit={handleSubmitReply} className="mt-4 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(["意見", "反論", "質問"] as ReplyTone[]).map((tone) => (
+                        <button
+                          key={tone}
+                          type="button"
+                          onClick={() => setReplyTone(tone)}
+                          className={`rounded border px-2.5 py-1 text-xs font-semibold transition ${
+                            replyTone === tone
+                              ? "border-blue-400 bg-blue-50 text-blue-700"
+                              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {tone}
+                        </button>
+                      ))}
+                    </div>
                     <textarea
                       value={replyBody}
                       onChange={(event) => setReplyBody(event.target.value)}
@@ -928,7 +870,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                           setImageUploading
                         )
                       }
-                      placeholder="返信を書く"
+                      placeholder="内容を書く（選択した種別で投稿されます）"
                       className="min-h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg leading-relaxed"
                     />
                     <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
@@ -945,108 +887,76 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                   </form>
                 </div>
 
-                <div>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-black text-slate-900">意思（score / 理由は任意）</h3>
-                    <button
-                      type="button"
-                      onClick={() => setIsIntentComposerOpen((prev) => !prev)}
-                      className="rounded border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <h3 className="text-xl font-black text-slate-900">銀行口座を接続</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    資金援助を円滑にするため、まず受取口座を登録します。
+                  </p>
+                  {activeBankAccount ? (
+                    <p className="mt-2 text-xs font-semibold text-emerald-700">
+                      接続済み: {activeBankAccount.bankName ?? "銀行未設定"} / ****
+                      {activeBankAccount.accountLast4 ?? "----"}
+                    </p>
+                  ) : null}
+                  <form onSubmit={handleSaveBankAccount} className="mt-3 grid gap-2 md:grid-cols-2">
+                    <input
+                      value={bankNameInput}
+                      onChange={(event) => setBankNameInput(event.target.value)}
+                      placeholder="銀行名（必須）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={bankCodeInput}
+                      onChange={(event) => setBankCodeInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                      placeholder="銀行コード（4桁・任意）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={branchNameInput}
+                      onChange={(event) => setBranchNameInput(event.target.value)}
+                      placeholder="支店名（任意）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={branchCodeInput}
+                      onChange={(event) => setBranchCodeInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                      placeholder="支店コード（3桁・任意）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <select
+                      value={accountTypeInput}
+                      onChange={(event) =>
+                        setAccountTypeInput(event.target.value as "ordinary" | "checking" | "savings")
+                      }
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
                     >
-                      {isIntentComposerOpen ? "意思入力を閉じる" : "＋ 意思を追加"}
-                    </button>
-                  </div>
-
-                  {isIntentComposerOpen ? (
-                    <form onSubmit={handleSubmitIntent} className="mb-4 space-y-2 rounded-lg border border-slate-200 p-4">
-                      <input
-                        value={intentScoreInput}
-                        onChange={(event) => setIntentScoreInput(event.target.value)}
-                        placeholder="score 1-10（任意）"
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <textarea
-                        value={intentReason}
-                        onChange={(event) => setIntentReason(event.target.value)}
-                        onPaste={(event) =>
-                          void handleImagePasteToField(
-                            event,
-                            setIntentReason,
-                            createImageUploadUrl,
-                            resolveImageUrl,
-                            setUiFeedback,
-                            setImageUploading
-                          )
-                        }
-                        placeholder="理由（任意）"
-                        className="min-h-28 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
-                      />
-                      <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
-                      {imageUploading ? (
-                        <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
-                      ) : null}
+                      <option value="ordinary">普通</option>
+                      <option value="checking">当座</option>
+                      <option value="savings">貯蓄</option>
+                    </select>
+                    <input
+                      value={accountNumberInput}
+                      onChange={(event) => setAccountNumberInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+                      placeholder="口座番号（4-8桁）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={accountHolderNameInput}
+                      onChange={(event) => setAccountHolderNameInput(event.target.value)}
+                      placeholder="口座名義（任意）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+                    />
+                    <div className="md:col-span-2">
                       <button
                         type="submit"
-                        disabled={!canWriteToThread || postingIntent || imageUploading}
-                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={savingBank}
+                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
                       >
-                        {postingIntent ? "投稿中..." : "意思を投稿"}
+                        {savingBank ? "接続中..." : "銀行口座を接続"}
                       </button>
-                    </form>
-                  ) : null}
-
-                  {intents.length === 0 ? (
-                    <p className="text-sm text-slate-500">まだ意思はありません。</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {intents.map((intent) => (
-                        <div key={intent._id} className="rounded-lg border border-slate-200 p-4">
-                          <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
-                            {intent.score !== undefined ? (
-                              <span className="rounded bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">
-                                Score {intent.score}
-                              </span>
-                            ) : (
-                              <span className="rounded bg-slate-100 px-2 py-0.5">Scoreなし</span>
-                            )}
-                            <span>{intent.authorName ?? userNameById.get(intent.createdBy) ?? "Unknown"}</span>
-                            {intent.hiddenAt ? (
-                              <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">非表示</span>
-                            ) : null}
-                            {canModerateIntent(intent.createdBy) ? (
-                              <div className="ml-auto flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  disabled={intentActionId === intent._id}
-                                  onClick={() =>
-                                    void handleToggleIntentHidden(intent._id, !Boolean(intent.hiddenAt))
-                                  }
-                                  className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
-                                >
-                                  {intent.hiddenAt ? "再表示" : "非表示"}
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={intentActionId === intent._id}
-                                  onClick={() => void handleDeleteIntent(intent._id)}
-                                  className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
-                                >
-                                  削除
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                          <div className="whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
-                            {intent.hiddenAt
-                              ? "この意思は非表示になっています。"
-                              : intent.reason
-                                ? renderBodyWithLinks(intent.reason)
-                                : "（空の意思）"}
-                          </div>
-                        </div>
-                      ))}
+                      {bankFeedback ? <p className="mt-2 text-xs text-slate-600">{bankFeedback}</p> : null}
                     </div>
-                  )}
+                  </form>
                 </div>
 
                 <div>
@@ -1115,103 +1025,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                   )}
                 </div>
 
-                <div>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-black text-slate-900">最終決定（owner確定）</h3>
-                    {selectedRoom.myRole === "owner" ? (
-                      <button
-                        type="button"
-                        onClick={() => setIsFinalDecisionComposerOpen((prev) => !prev)}
-                        className="rounded border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                      >
-                        {isFinalDecisionComposerOpen ? "確定フォームを閉じる" : "＋ 最終決定を確定"}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {isFinalDecisionComposerOpen ? (
-                    <form
-                      onSubmit={handleFinalizeDecision}
-                      className="mb-4 space-y-2 rounded-lg border border-slate-200 p-4"
-                    >
-                      <input
-                        value={finalConclusion}
-                        onChange={(event) => setFinalConclusion(event.target.value)}
-                        placeholder="結論（必須）"
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <textarea
-                        value={finalNote}
-                        onChange={(event) => setFinalNote(event.target.value)}
-                        onPaste={(event) =>
-                          void handleImagePasteToField(
-                            event,
-                            setFinalNote,
-                            createImageUploadUrl,
-                            resolveImageUrl,
-                            setUiFeedback,
-                            setImageUploading
-                          )
-                        }
-                        placeholder="補足メモ（任意）"
-                        className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-base leading-relaxed"
-                      />
-                      <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
-                      {imageUploading ? (
-                        <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
-                      ) : null}
-                      <button
-                        type="submit"
-                        disabled={savingFinalDecision || imageUploading || !finalConclusion.trim()}
-                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {savingFinalDecision ? "確定中..." : "最終決定を保存"}
-                      </button>
-                    </form>
-                  ) : null}
-
-                  {currentFinalDecision ? (
-                    <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4">
-                      <div className="mb-1 flex items-center gap-2 text-xs text-emerald-700">
-                        <span className="rounded bg-emerald-100 px-2 py-0.5 font-semibold">現在の決定</span>
-                        <span>v{currentFinalDecision.version}</span>
-                        <span>{currentFinalDecision.deciderName}</span>
-                      </div>
-                      <div className="whitespace-pre-wrap text-lg font-semibold leading-relaxed text-emerald-900">
-                        {renderBodyWithLinks(currentFinalDecision.conclusion)}
-                      </div>
-                      {currentFinalDecision.note ? (
-                        <div className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-emerald-800">
-                          {renderBodyWithLinks(currentFinalDecision.note)}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-500">最終決定はまだありません。</p>
-                  )}
-
-                  {historyFinalDecisions.length > 0 ? (
-                    <div className="mt-4 space-y-2">
-                      <p className="text-sm font-semibold text-slate-800">履歴</p>
-                      {historyFinalDecisions.map((decision) => (
-                        <div key={decision._id} className="rounded-lg border border-slate-200 p-3">
-                          <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
-                            <span className="rounded bg-slate-100 px-2 py-0.5 font-semibold">v{decision.version}</span>
-                            <span>{decision.deciderName}</span>
-                          </div>
-                          <div className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                            {renderBodyWithLinks(decision.conclusion)}
-                          </div>
-                          {decision.note ? (
-                            <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
-                              {renderBodyWithLinks(decision.note)}
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
               </div>
             </section>
           </div>
