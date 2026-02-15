@@ -7,11 +7,12 @@ import {
   SetStateAction,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import RoomSelector from "@/components/room/RoomSelector";
@@ -90,7 +91,6 @@ async function handleImagePasteToField(
 
 export default function RoomPageV2() {
   const { user } = useUser();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [isUserReady, setIsUserReady] = useState(false);
 
@@ -139,6 +139,7 @@ export default function RoomPageV2() {
   const [accountCopiedMessage, setAccountCopiedMessage] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [roomSelectionMessage, setRoomSelectionMessage] = useState<string | null>(null);
+  const previousSelectedRoomIdRef = useRef<Id<"rooms"> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +180,29 @@ export default function RoomPageV2() {
       setRoomSelectionMessage(`招待コード ${normalized} で参加できます`);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const previous = previousSelectedRoomIdRef.current;
+    if (!previous && selectedRoomId && typeof window !== "undefined") {
+      window.history.pushState({ funfundRoomLayer: true }, "", window.location.href);
+    }
+    previousSelectedRoomIdRef.current = selectedRoomId;
+  }, [selectedRoomId]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!selectedRoomId) {
+        return;
+      }
+      setSelectedRoomId(null);
+      setHubView("team");
+      setRoomSelectionMessage(null);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [selectedRoomId]);
 
   const effectiveRoomId = selectedRoomId;
   const selectedRoom = useMemo(
@@ -519,7 +543,6 @@ export default function RoomPageV2() {
       setSelectedRoomId(roomId);
       setHubView("team");
       setInviteCodeInput("");
-      router.replace("/room");
       setRoomSelectionMessage("部屋に参加しました");
     } catch (error) {
       const message = error instanceof Error ? error.message : "参加に失敗しました";
@@ -574,17 +597,6 @@ export default function RoomPageV2() {
                     language="ja"
                     onCreateRoom={() => {}}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedRoomId(null);
-                      setHubView("hub");
-                      setRoomSelectionMessage(null);
-                    }}
-                    className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    部屋選択に戻る
-                  </button>
                 </>
               ) : null}
               <RoomAccountControls />
@@ -642,10 +654,7 @@ export default function RoomPageV2() {
           <div className="space-y-4">
             {hubView === "hub" ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-black text-slate-900">FunFund Hub</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  まずは入口を選択してください。
-                </p>
+                <h2 className="text-2xl font-black text-slate-900">Hub</h2>
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <button
                     type="button"
@@ -659,9 +668,6 @@ export default function RoomPageV2() {
                     />
                     <div className="p-4">
                       <p className="text-xl font-black text-slate-900">広場</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        オープンコミュニティを探して参加する
-                      </p>
                     </div>
                   </button>
                   <button
@@ -676,9 +682,6 @@ export default function RoomPageV2() {
                     />
                     <div className="p-4">
                       <p className="text-xl font-black text-slate-900">チーム</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        参加済みチームに入る / 招待コードで参加
-                      </p>
                     </div>
                   </button>
                 </div>
@@ -699,7 +702,7 @@ export default function RoomPageV2() {
                     onClick={() => setHubView("hub")}
                     className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                   >
-                    Hubに戻る
+                    戻る
                   </button>
                 </div>
 
@@ -768,7 +771,7 @@ export default function RoomPageV2() {
                     onClick={() => setHubView("hub")}
                     className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                   >
-                    Hubに戻る
+                    戻る
                   </button>
                 </div>
 
@@ -824,6 +827,19 @@ export default function RoomPageV2() {
           </div>
         ) : (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRoomId(null);
+                  setHubView("hub");
+                  setRoomSelectionMessage(null);
+                }}
+                className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                部屋選択に戻る
+              </button>
+            </div>
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
