@@ -25,6 +25,20 @@ function normalizeOptions(options: string[] | undefined): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function safeNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function compactUndefined<T extends Record<string, unknown>>(row: T): T {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+  return next as T;
+}
+
 /**
  * Threadを作成
  * - proposal/project の場合は reason 必須
@@ -264,9 +278,30 @@ export const listThreads = query({
           .query("commitments")
           .withIndex("by_thread", (q) => q.eq("threadId", thread._id))
           .collect();
+        const commitmentTotal = commitments.reduce((sum, row) => {
+          const amount = safeNumber(row.amount) ?? 0;
+          return sum + amount;
+        }, 0);
         return {
-          ...thread,
-          commitmentTotal: commitments.reduce((sum, row) => sum + row.amount, 0),
+          ...compactUndefined({
+            _id: thread._id,
+            _creationTime: thread._creationTime,
+            roomId: thread.roomId,
+            type: thread.type,
+            title: typeof thread.title === "string" ? thread.title : undefined,
+            decisionOwnerId: thread.decisionOwnerId,
+            dueAt: safeNumber(thread.dueAt),
+            meetingUrl: typeof thread.meetingUrl === "string" ? thread.meetingUrl : undefined,
+            options: Array.isArray(thread.options)
+              ? thread.options.filter((row): row is string => typeof row === "string")
+              : undefined,
+            commitmentGoalAmount: safeNumber(thread.commitmentGoalAmount),
+            createdBy: thread.createdBy,
+            createdAt: safeNumber(thread.createdAt) ?? Date.now(),
+            archivedAt: safeNumber(thread.archivedAt),
+            archivedBy: thread.archivedBy,
+          }),
+          commitmentTotal: Math.round(commitmentTotal),
           commitmentCount: commitments.length,
         };
       })
