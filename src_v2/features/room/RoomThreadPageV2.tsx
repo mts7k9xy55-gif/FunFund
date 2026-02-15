@@ -244,7 +244,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
   }, [roomsForMe, roomIdAsId]);
   const threadDetail = useQuery(
-    api.threads.getThread,
+    api.threadView.getThreadView,
     isUserReady ? { threadId } : "skip"
   ) as SafeThreadDetail | null | undefined;
   const intents =
