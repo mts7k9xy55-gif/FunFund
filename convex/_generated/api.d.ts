@@ -28,6 +28,7 @@ import type * as profiles from "../profiles.js";
 import type * as publicPreviews from "../publicPreviews.js";
 import type * as rooms from "../rooms.js";
 import type * as stripe from "../stripe.js";
+import type * as threadMeta from "../threadMeta.js";
 import type * as threadView from "../threadView.js";
 import type * as threads from "../threads.js";
 import type * as uploads from "../uploads.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   publicPreviews: typeof publicPreviews;
   rooms: typeof rooms;
   stripe: typeof stripe;
+  threadMeta: typeof threadMeta;
   threadView: typeof threadView;
   threads: typeof threads;
   uploads: typeof uploads;

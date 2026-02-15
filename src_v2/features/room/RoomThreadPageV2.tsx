@@ -230,11 +230,10 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const roomsForMe = useQuery(api.rooms.listRoomsForMe, isUserReady ? {} : "skip");
-  const roomThreadsQuery = useQuery(
-    api.threads.listThreads,
-    isUserReady ? { roomId } : "skip"
+  const selectedThread = useQuery(
+    api.threadMeta.getThreadMeta,
+    isUserReady ? { threadId } : "skip"
   );
-  const roomThreads = useMemo(() => roomThreadsQuery ?? [], [roomThreadsQuery]);
   const selectedRoom = useMemo(() => {
     if (roomsForMe === undefined) {
       return undefined;
@@ -315,11 +314,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     return map;
   }, [users]);
 
-  const selectedThread = useMemo(
-    () => roomThreads.find((thread) => thread._id === threadIdAsId) ?? null,
-    [roomThreads, threadIdAsId]
-  );
-
   const reasonMessages = useMemo(
     () => threadMessages.filter((message) => message.kind === "reason"),
     [threadMessages]
@@ -351,7 +345,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const isLoading =
     !isUserReady ||
     selectedRoom === undefined ||
-    roomThreadsQuery === undefined ||
+    selectedThread === undefined ||
     threadMessagesQuery === undefined;
   const isMissing = selectedRoom === null || selectedThread === null;
   const isRoomThreadMismatch = Boolean(
