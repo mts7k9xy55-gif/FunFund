@@ -28,6 +28,32 @@ function getBankAccountTypeLabel(accountType?: BankAccountType) {
   return "普通";
 }
 
+function isLikelyImageUrl(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(url);
+}
+
+function dataUrlToImageFile(dataUrl: string): File | null {
+  const splitIndex = dataUrl.indexOf(",");
+  if (splitIndex < 0) return null;
+  const meta = dataUrl.slice(0, splitIndex);
+  const payload = dataUrl.slice(splitIndex + 1);
+  const mimeMatch = meta.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64$/);
+  if (!mimeMatch) return null;
+
+  try {
+    const mimeType = mimeMatch[1];
+    const binary = atob(payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    const extension = mimeType.split("/")[1] || "png";
+    return new File([bytes], `pasted-image.${extension}`, { type: mimeType });
+  } catch {
+    return null;
+  }
+}
+
 async function handleImagePasteToField(
   event: ClipboardEvent<HTMLTextAreaElement>,
   setField: Dispatch<SetStateAction<string>>,
@@ -36,52 +62,92 @@ async function handleImagePasteToField(
   onError: (message: string) => void,
   onUploading?: (uploading: boolean) => void
 ) {
-  const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) =>
+  const clipboard = event.clipboardData;
+  const imageItem = Array.from(clipboard?.items ?? []).find((item) =>
     item.type.startsWith("image/")
   );
-  if (!imageItem) {
-    return;
-  }
-  const imageFile = imageItem.getAsFile();
-  if (!imageFile) {
-    onError("画像の取得に失敗しました");
-    return;
-  }
-  if (imageFile.size > 10_000_000) {
-    onError("画像サイズは10MB以下にしてください");
-    event.preventDefault();
-    return;
-  }
-
-  event.preventDefault();
   const target = event.currentTarget;
   const start = target.selectionStart ?? target.value.length;
   const end = target.selectionEnd ?? start;
 
-  onUploading?.(true);
-  try {
-    const uploadUrl = await createImageUploadUrl({});
-    const uploadResponse = await fetch(uploadUrl, {
-      method: "POST",
-      headers: { "Content-Type": imageFile.type || "application/octet-stream" },
-      body: imageFile,
-    });
-    if (!uploadResponse.ok) {
-      throw new Error("画像アップロードに失敗しました");
-    }
-    const uploadPayload = (await uploadResponse.json()) as { storageId?: string };
-    if (!uploadPayload.storageId) {
-      throw new Error("アップロード結果が不正です");
-    }
-    const imageUrl = await resolveImageUrl({
-      storageId: uploadPayload.storageId as Id<"_storage">,
-    });
+  const insertImageMarkdown = (imageUrl: string) => {
     const inserted = `${start > 0 ? "\n" : ""}![貼り付け画像](${imageUrl})\n`;
     setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
-  } catch {
-    onError("画像の貼り付けに失敗しました");
-  } finally {
-    onUploading?.(false);
+  };
+
+  const uploadFileAndInsert = async (imageFile: File) => {
+    if (imageFile.size > 10_000_000) {
+      onError("画像サイズは10MB以下にしてください");
+      return;
+    }
+    onUploading?.(true);
+    try {
+      const uploadUrl = await createImageUploadUrl({});
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": imageFile.type || "application/octet-stream" },
+        body: imageFile,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error("画像アップロードに失敗しました");
+      }
+      const uploadPayload = (await uploadResponse.json()) as { storageId?: string };
+      if (!uploadPayload.storageId) {
+        throw new Error("アップロード結果が不正です");
+      }
+      const imageUrl = await resolveImageUrl({
+        storageId: uploadPayload.storageId as Id<"_storage">,
+      });
+      insertImageMarkdown(imageUrl);
+    } catch {
+      onError("画像の貼り付けに失敗しました");
+    } finally {
+      onUploading?.(false);
+    }
+  };
+
+  if (imageItem) {
+    const imageFile = imageItem.getAsFile();
+    if (!imageFile) {
+      onError("画像の取得に失敗しました");
+      return;
+    }
+    event.preventDefault();
+    await uploadFileAndInsert(imageFile);
+    return;
+  }
+
+  const imageFileFromClipboard = Array.from(clipboard?.files ?? []).find((file) =>
+    file.type.startsWith("image/")
+  );
+  if (imageFileFromClipboard) {
+    event.preventDefault();
+    await uploadFileAndInsert(imageFileFromClipboard);
+    return;
+  }
+
+  const html = clipboard?.getData("text/html") ?? "";
+  const htmlImageSrc = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+  if (htmlImageSrc) {
+    if (htmlImageSrc.startsWith("data:image/")) {
+      const imageFile = dataUrlToImageFile(htmlImageSrc);
+      if (imageFile) {
+        event.preventDefault();
+        await uploadFileAndInsert(imageFile);
+        return;
+      }
+    }
+    if (isLikelyImageUrl(htmlImageSrc)) {
+      event.preventDefault();
+      insertImageMarkdown(htmlImageSrc);
+      return;
+    }
+  }
+
+  const plainText = (clipboard?.getData("text/plain") ?? "").trim();
+  if (isLikelyImageUrl(plainText)) {
+    event.preventDefault();
+    insertImageMarkdown(plainText);
   }
 }
 
