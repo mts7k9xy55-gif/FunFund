@@ -195,7 +195,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
     return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
   }, [roomsForMe, roomIdAsId]);
   const threadDetail = useQuery(
-    api.threads.getThread,
+    api.threadView.getThreadView,
     isUserReady ? { threadId: threadIdAsId } : "skip"
   );
   const intents =
