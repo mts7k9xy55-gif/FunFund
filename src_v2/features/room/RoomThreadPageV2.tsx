@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   ClipboardEvent,
+  ChangeEvent,
   Component,
   Dispatch,
   ErrorInfo,
@@ -257,6 +258,49 @@ async function handleImagePasteToField(
   }
 }
 
+async function handleImageFileToField(
+  file: File,
+  setField: Dispatch<SetStateAction<string>>,
+  createImageUploadUrl: (args: Record<string, never>) => Promise<string>,
+  resolveImageUrl: (args: { storageId: Id<"_storage"> }) => Promise<string>,
+  onError: (message: string) => void,
+  onUploading?: (uploading: boolean) => void
+) {
+  if (!file.type.startsWith("image/")) {
+    onError("画像ファイルを選択してください");
+    return;
+  }
+  if (file.size > 10_000_000) {
+    onError("画像サイズは10MB以下にしてください");
+    return;
+  }
+
+  onUploading?.(true);
+  try {
+    const uploadUrl = await createImageUploadUrl({});
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    if (!uploadResponse.ok) {
+      throw new Error("画像アップロードに失敗しました");
+    }
+    const uploadPayload = (await uploadResponse.json()) as { storageId?: string };
+    if (!uploadPayload.storageId) {
+      throw new Error("アップロード結果が不正です");
+    }
+    const imageUrl = await resolveImageUrl({
+      storageId: uploadPayload.storageId as Id<"_storage">,
+    });
+    setField((previous) => `${previous}${previous.trim() ? "\n" : ""}![添付画像](${imageUrl})\n`);
+  } catch {
+    onError("画像の添付に失敗しました");
+  } finally {
+    onUploading?.(false);
+  }
+}
+
 function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const { user } = useUser();
   const router = useRouter();
@@ -337,6 +381,22 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const [bankFeedback, setBankFeedback] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [uiFeedback, setUiFeedback] = useState<string | null>(null);
+
+  const handleReplyImageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    await handleImageFileToField(
+      file,
+      setReplyBody,
+      createImageUploadUrl,
+      resolveImageUrl,
+      setUiFeedback,
+      setImageUploading
+    );
+    event.target.value = "";
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -862,6 +922,21 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                       placeholder="内容を書く（選択した種別で投稿されます）"
                       className="min-h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg leading-relaxed"
                     />
+                    <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="reply-image-input"
+                        className="cursor-pointer rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        画像を選択
+                      </label>
+                      <input
+                        id="reply-image-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => void handleReplyImageFileChange(event)}
+                        className="hidden"
+                      />
+                    </div>
                     <p className="text-xs text-slate-500">画像を貼り付けると自動でアップロードされます。</p>
                     {imageUploading ? (
                       <p className="text-xs font-semibold text-blue-700">画像をアップロード中...</p>
