@@ -75,8 +75,8 @@ export async function requireUser(ctx: QueryCtx | MutationCtx): Promise<Doc<"use
 }
 
 /**
- * Roomがアクティブかチェック（書き込み不可ならthrow）
- * 最重要ガード: status !== "active" のRoomには一切書き込みできない
+ * Roomの存在をチェックして返す
+ * 課金導線を外しているため、statusでは書き込みを制限しない
  */
 export async function requireActiveRoom(
   ctx: QueryCtx | MutationCtx,
@@ -85,12 +85,6 @@ export async function requireActiveRoom(
   const room = await ctx.db.get(roomId);
   if (!room) {
     throw new Error("Room not found");
-  }
-
-  if (room.status !== "active") {
-    throw new Error(
-      `Room is not active (status: ${room.status}). Only active rooms allow writing.`
-    );
   }
 
   return room;

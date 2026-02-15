@@ -16,7 +16,6 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import PaywallBanner from "@/components/room/PaywallBanner";
 import RoomAccountControls from "@/components/room/RoomAccountControls";
 
 interface RoomThreadPageV2Props {
@@ -298,9 +297,8 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
   const canModerateIntent = (createdBy: Id<"users">) =>
     selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
 
-  const isActiveRoom = selectedRoom?.status === "active";
   const canWriteToThread = Boolean(
-    isActiveRoom && selectedRoom?.myRole !== "viewer" && !selectedThread?.archivedAt
+    selectedRoom?.myRole !== "viewer" && !selectedThread?.archivedAt
   );
   const isLoading =
     !isUserReady || selectedRoom === undefined || threadDetail === undefined;
@@ -335,7 +333,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
     try {
       if (navigator?.share) {
         await navigator.share({
-          title: "FunFund Room 招待",
+          title: "FunFund 招待",
           text: "Roomに参加してください",
           url: inviteUrl,
         });
@@ -557,8 +555,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-[1700px] items-start justify-between gap-4 px-4 py-3 md:px-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund Room</h1>
-            <p className="text-xs text-slate-500">For Practical Decision</p>
+            <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund</h1>
           </div>
           <div className="flex flex-col items-end gap-2">
             <RoomAccountControls />
@@ -570,22 +567,33 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                 一覧に戻る
               </Link>
               {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleCopyInvite}
-                    className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    招待リンクをコピー
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleShareInvite}
-                    className="rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                  >
-                    共有（DMへ）
-                  </button>
-                </>
+                <details className="relative">
+                  <summary className="list-none cursor-pointer rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                    共有
+                  </summary>
+                  <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={async (event) => {
+                        await handleShareInvite();
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      DMで共有
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async (event) => {
+                        await handleCopyInvite();
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className="block w-full rounded px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      リンクをコピー
+                    </button>
+                  </div>
+                </details>
               ) : null}
             </div>
             {inviteMessage ? <p className="text-xs text-slate-500">{inviteMessage}</p> : null}
@@ -604,10 +612,6 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
           </div>
         ) : (
           <div className="space-y-6">
-            {!isActiveRoom ? (
-              <PaywallBanner roomStatus={selectedRoom.status} roomId={selectedRoom._id} language="ja" />
-            ) : null}
-
             {selectedThread.archivedAt ? (
               <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
                 このスレッドは「達成！」として記録されています。

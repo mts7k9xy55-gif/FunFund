@@ -29,7 +29,6 @@ export default function RoomSelector({
   const deleteRoom = useMutation(api.rooms.deleteRoom);
   const effectiveSelectedRoomId = selectedRoomId ?? rooms[0]?._id ?? null;
   const selectedRoom = rooms.find((room) => room._id === effectiveSelectedRoomId);
-  const needsPayment = selectedRoom ? selectedRoom.status !== "active" : false;
 
   const handleCreateRoom = async (
     name: string,
@@ -97,50 +96,42 @@ export default function RoomSelector({
           </button>
         </div>
       ) : (
-        <div className="flex flex-col items-end gap-1.5">
-          <div className="flex items-center gap-2">
-            <select
-              value={effectiveSelectedRoomId ?? ""}
-              onChange={(e) => {
-                const roomId = e.target.value;
-                onSelectRoom(roomId ? (roomId as Id<"rooms">) : null);
-              }}
-              className="min-w-[220px] px-3 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            >
-              {rooms.map((room) => (
-                <option key={room._id} value={room._id}>
-                  {room.name}
-                  {room.isPrivate && " 🔒"}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={effectiveSelectedRoomId ?? ""}
+            onChange={(e) => {
+              const roomId = e.target.value;
+              onSelectRoom(roomId ? (roomId as Id<"rooms">) : null);
+            }}
+            className="min-w-[220px] px-3 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            {rooms.map((room) => (
+              <option key={room._id} value={room._id}>
+                {room.name}
+                {room.isPrivate && " 🔒"}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+          >
+            {language === "ja" ? "+ 新規" : "+ New"}
+          </button>
+          {selectedRoom?.myRole === "owner" ? (
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              onClick={handleDeleteRoom}
+              disabled={isDeleting}
+              className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {language === "ja" ? "+ 新規" : "+ New"}
+              {isDeleting
+                ? language === "ja"
+                  ? "削除中..."
+                  : "Deleting..."
+                : language === "ja"
+                ? "削除"
+                : "Delete"}
             </button>
-            {selectedRoom?.myRole === "owner" ? (
-              <button
-                onClick={handleDeleteRoom}
-                disabled={isDeleting}
-                className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isDeleting
-                  ? language === "ja"
-                    ? "削除中..."
-                    : "Deleting..."
-                  : language === "ja"
-                  ? "削除"
-                  : "Delete"}
-              </button>
-            ) : null}
-          </div>
-          {needsPayment ? (
-            <p className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-              {language === "ja" ? "決済が必要です" : "Payment required"}
-            </p>
           ) : null}
         </div>
       )}
