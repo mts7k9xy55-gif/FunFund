@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/convex";
-import { ServiceWorkerCleanup } from "@/components/system/ServiceWorkerCleanup";
+import { ServiceWorkerRegister } from "@/components/system/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "FunFund",
@@ -46,7 +46,7 @@ export default function RootLayout({
               {children}
             </main>
           </ConvexClientProvider>
-          <ServiceWorkerCleanup />
+          <ServiceWorkerRegister />
         </body>
       </html>
     </ClerkProvider>
