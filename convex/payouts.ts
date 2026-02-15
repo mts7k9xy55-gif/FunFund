@@ -348,9 +348,13 @@ export const registerMyBankAccount = mutation({
     isDefault: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+    await requireUser(ctx);
     return await registerPayoutAccountCore(ctx, {
-      clerkUserId: user.userId,
+      clerkUserId: identity.subject,
       method: "bank_account",
       status: "active",
       bankName: args.bankName,
