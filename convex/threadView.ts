@@ -10,6 +10,16 @@ function safeString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function compactUndefined<T extends Record<string, unknown>>(row: T): T {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+  return next as T;
+}
+
 export const getThreadView = query({
   args: {
     threadId: v.string(),
@@ -97,7 +107,7 @@ export const getThreadView = query({
       rawDecisions.map((decision) => String(decision.reasonMessageId))
     );
 
-    const thread = {
+    const thread = compactUndefined({
       _id: rawThread._id,
       roomId: rawThread.roomId,
       type: rawThread.type,
@@ -113,7 +123,7 @@ export const getThreadView = query({
       createdAt: safeNumber(rawThread.createdAt) ?? Date.now(),
       archivedAt: safeNumber(rawThread.archivedAt),
       archivedBy: rawThread.archivedBy,
-    };
+    });
 
     const messages = rawMessages
       .filter((message) => {
@@ -125,17 +135,19 @@ export const getThreadView = query({
         }
         return membership.role === "owner" || message.createdBy === user._id;
       })
-      .map((message) => ({
-        _id: message._id,
-        roomId: message.roomId,
-        threadId: message.threadId,
-        kind: message.kind,
-        body: safeString(message.body) ?? "",
-        createdBy: message.createdBy,
-        createdAt: safeNumber(message.createdAt) ?? Date.now(),
-        hiddenAt: safeNumber(message.hiddenAt),
-        hiddenBy: message.hiddenBy,
-      }));
+      .map((message) =>
+        compactUndefined({
+          _id: message._id,
+          roomId: message.roomId,
+          threadId: message.threadId,
+          kind: message.kind,
+          body: safeString(message.body) ?? "",
+          createdBy: message.createdBy,
+          createdAt: safeNumber(message.createdAt) ?? Date.now(),
+          hiddenAt: safeNumber(message.hiddenAt),
+          hiddenBy: message.hiddenBy,
+        })
+      );
 
     const decisions = rawDecisions
       .filter((decision) => {
