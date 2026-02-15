@@ -105,7 +105,7 @@ export default function RoomPageV2() {
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
-  const [hubView, setHubView] = useState<"plaza" | "team">("plaza");
+  const [hubView, setHubView] = useState<"hub" | "plaza" | "team">("hub");
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [joiningByInviteCode, setJoiningByInviteCode] = useState(false);
   const [joiningOpenRoomId, setJoiningOpenRoomId] = useState<Id<"rooms"> | null>(null);
@@ -535,7 +535,7 @@ export default function RoomPageV2() {
     try {
       const joinedRoomId = await joinOpenRoom({ roomId });
       setSelectedRoomId(joinedRoomId);
-      setHubView("plaza");
+      setHubView("hub");
       setRoomSelectionMessage("広場に参加しました");
     } catch (error) {
       const message = error instanceof Error ? error.message : "参加に失敗しました";
@@ -555,7 +555,7 @@ export default function RoomPageV2() {
                 type="button"
                 onClick={() => {
                   setSelectedRoomId(null);
-                  setHubView("plaza");
+                  setHubView("hub");
                   setRoomSelectionMessage(null);
                 }}
                 className="cursor-pointer text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800 hover:underline"
@@ -566,24 +566,26 @@ export default function RoomPageV2() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <RoomSelector
-                selectedRoomId={selectedRoomId}
-                onSelectRoom={setSelectedRoomId}
-                language="ja"
-                onCreateRoom={() => {}}
-              />
               {selectedRoom ? (
-                <button
-                  type="button"
-                onClick={() => {
-                  setSelectedRoomId(null);
-                  setHubView("plaza");
-                  setRoomSelectionMessage(null);
-                }}
-                  className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  部屋選択に戻る
-                </button>
+                <>
+                  <RoomSelector
+                    selectedRoomId={selectedRoomId}
+                    onSelectRoom={setSelectedRoomId}
+                    language="ja"
+                    onCreateRoom={() => {}}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoomId(null);
+                      setHubView("hub");
+                      setRoomSelectionMessage(null);
+                    }}
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    部屋選択に戻る
+                  </button>
+                </>
               ) : null}
               <RoomAccountControls />
             </div>
@@ -638,105 +640,143 @@ export default function RoomPageV2() {
           </div>
         ) : !effectiveRoomId || !selectedRoom ? (
           <div className="space-y-4">
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900">FunFund Hub</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                ログイン後は、まず「広場」か「チーム」を選択します。
-              </p>
-
-              <div className="mt-4 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-                <button
-                  type="button"
-                  onClick={() => setHubView("plaza")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                    hubView === "plaza"
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-700 hover:bg-white"
-                  }`}
-                >
-                  広場
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHubView("team")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                    hubView === "team"
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-700 hover:bg-white"
-                  }`}
-                >
-                  チーム
-                </button>
-              </div>
-
-              {hubView === "plaza" ? (
-                <div className="mt-4 space-y-4">
-                  <section className="rounded-xl border border-blue-200 bg-blue-50/40 p-4">
-                    <h3 className="text-lg font-bold text-slate-900">広場</h3>
-                    <p className="mt-1 text-sm text-slate-700">
-                      Kickstarter や Meetup のように、公開コミュニティを見て参加できます。
-                    </p>
-                    <p className="mt-2 text-xs text-slate-500">
-                      参加前に雰囲気を確認し、参加後はチーム内で企画とコミュニケーションに進みます。
-                    </p>
-                  </section>
-
-                  <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
-                    <h3 className="text-base font-bold text-slate-900">公開コミュニティ</h3>
-                    {discoverableOpenRooms.length === 0 ? (
-                      <p className="mt-3 text-sm text-slate-500">参加可能な広場はありません。</p>
-                    ) : (
-                      <div className="mt-3 space-y-2">
-                        {discoverableOpenRooms.map((room) => (
-                          <div
-                            key={room._id}
-                            className="rounded-xl border border-slate-200 bg-white p-4"
-                          >
-                            <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              オーナー: {room.ownerName} / 参加者 {room.memberCount} 人
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => void handleJoinOpenCommunity(room._id)}
-                              disabled={joiningOpenRoomId === room._id}
-                              className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                            >
-                              {joiningOpenRoomId === room._id ? "参加中..." : "参加する"}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
-                    <h3 className="text-base font-bold text-slate-900">参加中チーム</h3>
-                    {rooms.length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-500">まだ参加しているチームがありません。</p>
-                    ) : (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {rooms.map((room) => (
-                          <button
-                            key={room._id}
-                            type="button"
-                            onClick={() => setSelectedRoomId(room._id)}
-                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                          >
-                            {room.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </section>
+            {hubView === "hub" ? (
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-2xl font-black text-slate-900">FunFund Hub</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  まずは入口を選択してください。
+                </p>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setHubView("plaza")}
+                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80"
+                      alt="広場"
+                      className="h-28 w-full object-cover"
+                    />
+                    <div className="p-4">
+                      <p className="text-xl font-black text-slate-900">広場</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        オープンコミュニティを探して参加する
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHubView("team")}
+                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80"
+                      alt="チーム"
+                      className="h-28 w-full object-cover"
+                    />
+                    <div className="p-4">
+                      <p className="text-xl font-black text-slate-900">チーム</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        参加済みチームに入る / 招待コードで参加
+                      </p>
+                    </div>
+                  </button>
                 </div>
-              ) : (
-                <div className="mt-4 space-y-4">
+              </section>
+            ) : null}
+
+            {hubView === "plaza" ? (
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">広場</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      オープンコミュニティの一覧から参加先を選べます。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHubView("hub")}
+                    className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Hubに戻る
+                  </button>
+                </div>
+
+                {discoverableOpenRooms.length === 0 ? (
+                  <p className="text-sm text-slate-500">参加可能な広場はありません。</p>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {discoverableOpenRooms.map((room, index) => {
+                      const fallbackImages = [
+                        "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=600&q=80",
+                        "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=600&q=80",
+                        "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80",
+                      ];
+                      const thumbUrl =
+                        room.ownerAvatarUrl ?? fallbackImages[index % fallbackImages.length];
+
+                      return (
+                        <article
+                          key={room._id}
+                          className="rounded-xl border border-slate-200 bg-white p-4"
+                        >
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={thumbUrl}
+                              alt={`${room.name} サムネイル`}
+                              className="h-16 w-16 rounded-lg border border-slate-200 object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-lg font-bold text-slate-900">{room.name}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                オーナー: {room.ownerName} / 参加者 {room.memberCount} 人
+                              </p>
+                              <p className="mt-2 text-sm text-slate-600">
+                                提案を投稿し、公開の場で意見交換できます。
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleJoinOpenCommunity(room._id)}
+                            disabled={joiningOpenRoomId === room._id}
+                            className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                          >
+                            {joiningOpenRoomId === room._id ? "参加中..." : "参加する"}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+                {roomSelectionMessage ? <p className="mt-3 text-sm text-slate-600">{roomSelectionMessage}</p> : null}
+              </section>
+            ) : null}
+
+            {hubView === "team" ? (
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">チーム</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      参加済みチームに入るか、招待コードで新規参加します。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHubView("hub")}
+                    className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Hubに戻る
+                  </button>
+                </div>
+
+                <div className="space-y-4">
                   <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
-                    <h3 className="text-base font-bold text-slate-900">チーム</h3>
-                    <p className="mt-1 text-xs text-slate-500">参加中の部屋</p>
+                    <h3 className="text-base font-bold text-slate-900">参加済みチーム</h3>
                     {rooms.length === 0 ? (
-                      <p className="mt-3 text-sm text-slate-500">まだ参加している部屋がありません。</p>
+                      <p className="mt-3 text-sm text-slate-500">まだ参加しているチームがありません。</p>
                     ) : (
                       <div className="mt-3 space-y-2">
                         {rooms.map((room) => (
@@ -756,8 +796,8 @@ export default function RoomPageV2() {
                     )}
                   </section>
 
-                  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900">招待コードで参加</h3>
+                  <section className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h3 className="text-base font-bold text-slate-900">招待コードで参加</h3>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <input
                         value={inviteCodeInput}
@@ -779,8 +819,8 @@ export default function RoomPageV2() {
                     {roomSelectionMessage ? <p className="mt-2 text-sm text-slate-600">{roomSelectionMessage}</p> : null}
                   </section>
                 </div>
-              )}
-            </section>
+              </section>
+            ) : null}
           </div>
         ) : (
           <div className="space-y-6">

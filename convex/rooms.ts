@@ -216,11 +216,18 @@ export const listOpenCommunityRooms = query({
           .withIndex("by_room", (q) => q.eq("roomId", room._id))
           .collect();
         const owner = await ctx.db.get(room.ownerId);
+        const ownerProfile = owner?.userId
+          ? await ctx.db
+              .query("profiles")
+              .withIndex("by_userId", (q) => q.eq("userId", owner.userId))
+              .first()
+          : null;
 
         return {
           _id: room._id,
           name: room.name,
           ownerName: owner?.name ?? "Unknown",
+          ownerAvatarUrl: ownerProfile?.avatarUrl ?? null,
           memberCount: members.length,
           joined: joinedRoomIds.has(room._id),
           createdAt: room.createdAt,
