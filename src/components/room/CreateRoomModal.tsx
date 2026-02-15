@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { OpenIcon, PrivateIcon } from "@/components/icons/VisibilityIcons";
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -109,6 +110,9 @@ export default function CreateRoomModal({
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
+                <div className="mb-2 flex justify-center">
+                  <OpenIcon size={40} color={mode === "open" ? "#2563eb" : "#64748b"} />
+                </div>
                 <div className="text-sm font-semibold">{language === "ja" ? "オープン" : "Open"}</div>
               </button>
               <button
@@ -119,6 +123,9 @@ export default function CreateRoomModal({
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
+                <div className="mb-2 flex justify-center">
+                  <PrivateIcon size={40} color={mode === "closed" ? "#2563eb" : "#64748b"} />
+                </div>
                 <div className="text-sm font-semibold">
                   {language === "ja" ? "プライベート" : "Private"}
                 </div>
