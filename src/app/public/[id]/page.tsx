@@ -1,11 +1,12 @@
 import PublicDetailPageV2 from "@v2/features/public/PublicDetailPageV2";
 
 interface PublicDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function PublicDetailPage({ params }: PublicDetailPageProps) {
-  return <PublicDetailPageV2 id={params.id} />;
+export default async function PublicDetailPage({ params }: PublicDetailPageProps) {
+  const { id } = await params;
+  return <PublicDetailPageV2 id={id} />;
 }
