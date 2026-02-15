@@ -105,6 +105,7 @@ export default function RoomPageV2() {
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
+  const [hubView, setHubView] = useState<"plaza" | "team">("plaza");
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [joiningByInviteCode, setJoiningByInviteCode] = useState(false);
   const [joiningOpenRoomId, setJoiningOpenRoomId] = useState<Id<"rooms"> | null>(null);
@@ -174,6 +175,7 @@ export default function RoomPageV2() {
     const normalized = invite.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
     if (normalized) {
       setInviteCodeInput(normalized);
+      setHubView("team");
       setRoomSelectionMessage(`招待コード ${normalized} で参加できます`);
     }
   }, [searchParams]);
@@ -515,6 +517,7 @@ export default function RoomPageV2() {
     try {
       const roomId = await joinRoomByInviteCode({ inviteCode: normalized });
       setSelectedRoomId(roomId);
+      setHubView("team");
       setInviteCodeInput("");
       router.replace("/room");
       setRoomSelectionMessage("部屋に参加しました");
@@ -532,6 +535,7 @@ export default function RoomPageV2() {
     try {
       const joinedRoomId = await joinOpenRoom({ roomId });
       setSelectedRoomId(joinedRoomId);
+      setHubView("plaza");
       setRoomSelectionMessage("広場に参加しました");
     } catch (error) {
       const message = error instanceof Error ? error.message : "参加に失敗しました";
@@ -551,6 +555,7 @@ export default function RoomPageV2() {
                 type="button"
                 onClick={() => {
                   setSelectedRoomId(null);
+                  setHubView("plaza");
                   setRoomSelectionMessage(null);
                 }}
                 className="cursor-pointer text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800 hover:underline"
@@ -570,10 +575,11 @@ export default function RoomPageV2() {
               {selectedRoom ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedRoomId(null);
-                    setRoomSelectionMessage(null);
-                  }}
+                onClick={() => {
+                  setSelectedRoomId(null);
+                  setHubView("plaza");
+                  setRoomSelectionMessage(null);
+                }}
                   className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                 >
                   部屋選択に戻る
@@ -633,85 +639,147 @@ export default function RoomPageV2() {
         ) : !effectiveRoomId || !selectedRoom ? (
           <div className="space-y-4">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900">部屋を選択</h2>
-              <p className="mt-1 text-sm text-slate-500">参加中のチームと、公開されている広場を分けて表示しています。</p>
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
-                  <h3 className="text-base font-bold text-slate-900">チーム</h3>
-                  <p className="mt-1 text-xs text-slate-500">参加中の部屋</p>
-                  {rooms.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-500">まだ参加している部屋がありません。</p>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {rooms.map((room) => (
-                        <button
-                          key={room._id}
-                          type="button"
-                          onClick={() => setSelectedRoomId(room._id)}
-                          className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm"
-                        >
-                          <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {room.isPrivate ? "プライベート" : "オープン"} / {room.myRole}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </section>
-                <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
-                  <h3 className="text-base font-bold text-slate-900">広場</h3>
-                  <p className="mt-1 text-xs text-slate-500">オープンなコミュニティ</p>
-                  {discoverableOpenRooms.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-500">参加可能な広場はありません。</p>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {discoverableOpenRooms.map((room) => (
-                        <div
-                          key={room._id}
-                          className="rounded-xl border border-slate-200 bg-white p-4"
-                        >
-                          <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            オーナー: {room.ownerName} / 参加者 {room.memberCount} 人
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => void handleJoinOpenCommunity(room._id)}
-                            disabled={joiningOpenRoomId === room._id}
-                            className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                          >
-                            {joiningOpenRoomId === room._id ? "参加中..." : "参加する"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-            </section>
+              <h2 className="text-2xl font-bold text-slate-900">FunFund Hub</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                ログイン後は、まず「広場」か「チーム」を選択します。
+              </p>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">招待コードで参加</h3>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <input
-                  value={inviteCodeInput}
-                  onChange={(event) =>
-                    setInviteCodeInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))
-                  }
-                  placeholder="8文字の招待コード"
-                  className="w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider"
-                />
+              <div className="mt-4 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
                 <button
                   type="button"
-                  onClick={() => void handleJoinWithCode()}
-                  disabled={joiningByInviteCode || inviteCodeInput.trim().length < 4}
-                  className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  onClick={() => setHubView("plaza")}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    hubView === "plaza"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-700 hover:bg-white"
+                  }`}
                 >
-                  {joiningByInviteCode ? "参加中..." : "参加する"}
+                  広場
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHubView("team")}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    hubView === "team"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-700 hover:bg-white"
+                  }`}
+                >
+                  チーム
                 </button>
               </div>
-              {roomSelectionMessage ? <p className="mt-2 text-sm text-slate-600">{roomSelectionMessage}</p> : null}
+
+              {hubView === "plaza" ? (
+                <div className="mt-4 space-y-4">
+                  <section className="rounded-xl border border-blue-200 bg-blue-50/40 p-4">
+                    <h3 className="text-lg font-bold text-slate-900">広場</h3>
+                    <p className="mt-1 text-sm text-slate-700">
+                      Kickstarter や Meetup のように、公開コミュニティを見て参加できます。
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      参加前に雰囲気を確認し、参加後はチーム内で企画とコミュニケーションに進みます。
+                    </p>
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+                    <h3 className="text-base font-bold text-slate-900">公開コミュニティ</h3>
+                    {discoverableOpenRooms.length === 0 ? (
+                      <p className="mt-3 text-sm text-slate-500">参加可能な広場はありません。</p>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {discoverableOpenRooms.map((room) => (
+                          <div
+                            key={room._id}
+                            className="rounded-xl border border-slate-200 bg-white p-4"
+                          >
+                            <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              オーナー: {room.ownerName} / 参加者 {room.memberCount} 人
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => void handleJoinOpenCommunity(room._id)}
+                              disabled={joiningOpenRoomId === room._id}
+                              className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                            >
+                              {joiningOpenRoomId === room._id ? "参加中..." : "参加する"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+                    <h3 className="text-base font-bold text-slate-900">参加中チーム</h3>
+                    {rooms.length === 0 ? (
+                      <p className="mt-2 text-sm text-slate-500">まだ参加しているチームがありません。</p>
+                    ) : (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {rooms.map((room) => (
+                          <button
+                            key={room._id}
+                            type="button"
+                            onClick={() => setSelectedRoomId(room._id)}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                          >
+                            {room.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+                    <h3 className="text-base font-bold text-slate-900">チーム</h3>
+                    <p className="mt-1 text-xs text-slate-500">参加中の部屋</p>
+                    {rooms.length === 0 ? (
+                      <p className="mt-3 text-sm text-slate-500">まだ参加している部屋がありません。</p>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {rooms.map((room) => (
+                          <button
+                            key={room._id}
+                            type="button"
+                            onClick={() => setSelectedRoomId(room._id)}
+                            className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm"
+                          >
+                            <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {room.isPrivate ? "プライベート" : "オープン"} / {room.myRole}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900">招待コードで参加</h3>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <input
+                        value={inviteCodeInput}
+                        onChange={(event) =>
+                          setInviteCodeInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))
+                        }
+                        placeholder="8文字の招待コード"
+                        className="w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleJoinWithCode()}
+                        disabled={joiningByInviteCode || inviteCodeInput.trim().length < 4}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        {joiningByInviteCode ? "参加中..." : "参加する"}
+                      </button>
+                    </div>
+                    {roomSelectionMessage ? <p className="mt-2 text-sm text-slate-600">{roomSelectionMessage}</p> : null}
+                  </section>
+                </div>
+              )}
             </section>
           </div>
         ) : (
@@ -719,7 +787,10 @@ export default function RoomPageV2() {
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">企画</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">企画・コミュニケーション</h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    言語のやりとりと、コミット金額のやりとりを同じ流れで進めます。
+                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button
