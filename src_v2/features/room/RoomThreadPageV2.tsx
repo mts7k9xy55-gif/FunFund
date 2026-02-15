@@ -243,18 +243,17 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     }
     return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
   }, [roomsForMe, roomIdAsId]);
+  type LooseRecord = Record<string, any>;
   const threadDetail = null as SafeThreadDetail | null;
-  const intents =
-    useQuery(api.intents.listIntents, isUserReady ? { threadId: threadIdAsId } : "skip") ?? [];
-  const finalDecisions =
-    useQuery(
-      api.finalDecisions.listFinalDecisions,
-      isUserReady ? { threadId: threadIdAsId } : "skip"
-    ) ?? [];
-  const commitmentSummary = useQuery(
-    api.commitments.listThreadCommitments,
-    isUserReady ? { threadId: threadIdAsId } : "skip"
-  );
+  const intents: LooseRecord[] = [];
+  const finalDecisions: LooseRecord[] = [];
+  const commitmentSummary = null as
+    | {
+        commitments: LooseRecord[];
+        totalAmount: number;
+        supporterCount: number;
+      }
+    | null;
   const usersQuery = useQuery(api.users.listUsers);
   const users = useMemo(() => usersQuery ?? [], [usersQuery]);
 
