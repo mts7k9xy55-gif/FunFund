@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import RoomAccountControls from "@/components/room/RoomAccountControls";
+import { BANK_OPTIONS, findBankOptionByCode } from "./bankOptions";
 
 interface RoomThreadPageV2Props {
   roomId: string;
@@ -274,15 +275,13 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const usersQuery = useQuery(api.users.listUsers);
   const users = useMemo(() => usersQuery ?? [], [usersQuery]);
 
-  const [dangerArmedThreadId, setDangerArmedThreadId] = useState<Id<"threads"> | null>(null);
   const [threadActionId, setThreadActionId] = useState<Id<"threads"> | null>(null);
   const [messageActionId, setMessageActionId] = useState<Id<"messages"> | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const [replyTone, setReplyTone] = useState<ReplyTone>("意見");
   const [postingReply, setPostingReply] = useState(false);
-  const [bankNameInput, setBankNameInput] = useState("");
-  const [bankCodeInput, setBankCodeInput] = useState("");
+  const [bankPresetCodeInput, setBankPresetCodeInput] = useState("");
   const [branchNameInput, setBranchNameInput] = useState("");
   const [branchCodeInput, setBranchCodeInput] = useState("");
   const [accountTypeInput, setAccountTypeInput] = useState<"ordinary" | "checking" | "savings">(
@@ -290,7 +289,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   );
   const [accountNumberInput, setAccountNumberInput] = useState("");
   const [accountHolderNameInput, setAccountHolderNameInput] = useState("");
-  const [onlineBankingUrlInput, setOnlineBankingUrlInput] = useState("");
   const [savingBank, setSavingBank] = useState(false);
   const [bankFeedback, setBankFeedback] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
@@ -347,6 +345,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const activeBankAccount = myPayoutAccounts.find(
     (account) => account.method === "bank_account" && account.status === "active"
   );
+  const selectedBankPreset = findBankOptionByCode(bankPresetCodeInput);
 
   const canModerateMessage = (createdBy: Id<"users">) =>
     selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
@@ -465,10 +464,16 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
 
   const handleSaveBankAccount = async (event: FormEvent) => {
     event.preventDefault();
-    const bankName = bankNameInput.trim();
+    const bankName = selectedBankPreset?.name ?? "";
+    const bankCode = selectedBankPreset?.code ?? "";
+    const onlineBankingUrl = selectedBankPreset?.onlineBankingUrl;
     const accountNumber = accountNumberInput.replace(/[^0-9]/g, "");
+    if (!selectedBankPreset) {
+      setBankFeedback("銀行アプリを選択してください");
+      return;
+    }
     if (!bankName || accountNumber.length < 4 || accountNumber.length > 8) {
-      setBankFeedback("銀行名と口座番号(4-8桁)を入力してください");
+      setBankFeedback("口座番号(4-8桁)を入力してください");
       return;
     }
 
@@ -477,13 +482,13 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     try {
       await registerMyBankAccount({
         bankName,
-        bankCode: bankCodeInput.trim() || undefined,
+        bankCode,
         branchName: branchNameInput.trim() || undefined,
         branchCode: branchCodeInput.trim() || undefined,
         accountType: accountTypeInput,
         accountNumber,
         accountHolderName: accountHolderNameInput.trim() || undefined,
-        onlineBankingUrl: onlineBankingUrlInput.trim() || undefined,
+        onlineBankingUrl,
         isDefault: true,
       });
       setBankFeedback("銀行口座を保存しました");
@@ -523,15 +528,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
       return;
     }
 
-    const targetTitle =
-      selectedThread?._id === threadIdValue ? (selectedThread.title ?? "Untitled") : "Untitled";
-    const typedTitle = window.prompt(
-      `削除するにはスレッド名を入力してください:\n${targetTitle}`
-    );
-    if (typedTitle !== targetTitle) {
-      setUiFeedback("スレッド名が一致しないため削除を中止しました");
-      return;
-    }
     const finalPhrase = window.prompt("最終確認: DELETE と入力してください");
     if (finalPhrase !== "DELETE") {
       setUiFeedback("確認語が一致しないため削除を中止しました");
@@ -541,7 +537,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     setThreadActionId(threadIdValue);
     try {
       await deleteThread({ threadId: threadIdValue });
-      router.push("/room");
+      router.push(`/room?roomId=${roomId}`);
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "スレッド削除に失敗しました";
@@ -564,6 +560,13 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                 FunFund
               </Link>
             </h1>
+            <button
+              type="button"
+              onClick={() => router.push(`/room?roomId=${roomId}`)}
+              className="mt-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              ← 部屋に戻る
+            </button>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -642,21 +645,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        setDangerArmedThreadId((prev) =>
-                          prev === selectedThread._id ? null : selectedThread._id
-                        )
-                      }
-                      className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
-                    >
-                      {dangerArmedThreadId === selectedThread._id ? "★ 管理操作ON" : "☆ 管理操作"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={
-                        threadActionId === selectedThread._id ||
-                        dangerArmedThreadId !== selectedThread._id
-                      }
+                      disabled={threadActionId === selectedThread._id}
                       onClick={() => {
                         const targetLabel = selectedThread.archivedAt ? "再オープン" : "達成";
                         const confirmed = window.confirm(`${targetLabel}に変更します。続けますか？`);
@@ -669,10 +658,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                     </button>
                     <button
                       type="button"
-                      disabled={
-                        threadActionId === selectedThread._id ||
-                        dangerArmedThreadId !== selectedThread._id
-                      }
+                      disabled={threadActionId === selectedThread._id}
                       onClick={() => void handleDeleteThread(selectedThread._id)}
                       className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                     >
@@ -806,7 +792,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                           key={tone}
                           type="button"
                           onClick={() => setReplyTone(tone)}
-                          className={`rounded border px-2.5 py-1 text-xs font-semibold transition ${
+                          className={`rounded-lg border px-4 py-2 text-base font-bold transition ${
                             replyTone === tone
                               ? "border-blue-400 bg-blue-50 text-blue-700"
                               : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
@@ -858,18 +844,18 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                     </p>
                   ) : null}
                   <form onSubmit={handleSaveBankAccount} className="mt-3 grid gap-2 md:grid-cols-2">
-                    <input
-                      value={bankNameInput}
-                      onChange={(event) => setBankNameInput(event.target.value)}
-                      placeholder="銀行名（必須）"
-                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={bankCodeInput}
-                      onChange={(event) => setBankCodeInput(event.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                      placeholder="銀行コード（4桁・任意）"
-                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                    />
+                    <select
+                      value={bankPresetCodeInput}
+                      onChange={(event) => setBankPresetCodeInput(event.target.value)}
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+                    >
+                      <option value="">銀行アプリを選択（必須）</option>
+                      {BANK_OPTIONS.map((bank) => (
+                        <option key={bank.code} value={bank.code}>
+                          {bank.name}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       value={branchNameInput}
                       onChange={(event) => setBranchNameInput(event.target.value)}
@@ -906,12 +892,12 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                       className="w-full rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
                     />
                     <input
-                      value={onlineBankingUrlInput}
-                      onChange={(event) => setOnlineBankingUrlInput(event.target.value)}
-                      placeholder="ネットバンクURL（任意）"
-                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+                      value={selectedBankPreset?.onlineBankingUrl ?? ""}
+                      readOnly
+                      placeholder="ネットバンクURL"
+                      className="w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 md:col-span-2"
                     />
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 space-y-2">
                       <button
                         type="submit"
                         disabled={savingBank}
@@ -920,42 +906,15 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                         {savingBank ? "保存中..." : "銀行口座を保存"}
                       </button>
                       {bankFeedback ? <p className="mt-2 text-xs text-slate-600">{bankFeedback}</p> : null}
-                      {activeBankAccount ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const lines = [
-                                `銀行名: ${activeBankAccount.bankName ?? "-"}`,
-                                `銀行コード: ${activeBankAccount.bankCode ?? "-"}`,
-                                `支店名: ${activeBankAccount.branchName ?? "-"}`,
-                                `支店コード: ${activeBankAccount.branchCode ?? "-"}`,
-                                `口座種別: ${activeBankAccount.accountType ?? "-"}`,
-                                `口座番号: ${activeBankAccount.accountNumber ?? "****" + (activeBankAccount.accountLast4 ?? "")}`,
-                                `口座名義: ${activeBankAccount.accountHolderName ?? "-"}`,
-                              ].join("\n");
-                              try {
-                                await navigator.clipboard.writeText(lines);
-                                setBankFeedback("振込テンプレをコピーしました");
-                              } catch {
-                                setBankFeedback("コピーに失敗しました");
-                              }
-                            }}
-                            className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                          >
-                            振込テンプレをコピー
-                          </button>
-                          {activeBankAccount.onlineBankingUrl ? (
-                            <a
-                              href={activeBankAccount.onlineBankingUrl}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                            >
-                              ネットバンクを開く
-                            </a>
-                          ) : null}
-                        </div>
+                      {activeBankAccount?.onlineBankingUrl ? (
+                        <a
+                          href={activeBankAccount.onlineBankingUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="inline-flex rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                        >
+                          {activeBankAccount.bankName ?? "銀行"}アプリを開く
+                        </a>
                       ) : null}
                     </div>
                   </form>
