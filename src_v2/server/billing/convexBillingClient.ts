@@ -23,7 +23,24 @@ function getConvexHttpBase(): string {
   if (!convexUrl) {
     throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
   }
-  return convexUrl.replace(/\.cloud$/, ".cloud/api");
+  const normalized = convexUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/api")) {
+    return normalized;
+  }
+  if (normalized.endsWith(".cloud") || normalized.endsWith(".site")) {
+    return `${normalized}/api`;
+  }
+  try {
+    const url = new URL(normalized);
+    if (!url.pathname || url.pathname === "/") {
+      url.pathname = "/api";
+    } else if (!url.pathname.endsWith("/api")) {
+      url.pathname = `${url.pathname.replace(/\/+$/, "")}/api`;
+    }
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return `${normalized}/api`;
+  }
 }
 
 async function post(path: string, body: Record<string, unknown>): Promise<void> {
