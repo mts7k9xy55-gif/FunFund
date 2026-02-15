@@ -590,7 +590,6 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
             </h1>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <RoomAccountControls />
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
                 href="/room"
@@ -598,6 +597,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
               >
                 部屋選択に戻る
               </Link>
+              <RoomAccountControls />
               {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
                 <details className="relative">
                   <summary className="list-none cursor-pointer rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">

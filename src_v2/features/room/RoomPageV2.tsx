@@ -560,25 +560,27 @@ export default function RoomPageV2() {
             </h1>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <RoomAccountControls />
-            <RoomSelector
-              selectedRoomId={selectedRoomId}
-              onSelectRoom={setSelectedRoomId}
-              language="ja"
-              onCreateRoom={() => {}}
-            />
-            {selectedRoom ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedRoomId(null);
-                  setRoomSelectionMessage(null);
-                }}
-                className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                部屋選択に戻る
-              </button>
-            ) : null}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <RoomSelector
+                selectedRoomId={selectedRoomId}
+                onSelectRoom={setSelectedRoomId}
+                language="ja"
+                onCreateRoom={() => {}}
+              />
+              {selectedRoom ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRoomId(null);
+                    setRoomSelectionMessage(null);
+                  }}
+                  className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  部屋選択に戻る
+                </button>
+              ) : null}
+              <RoomAccountControls />
+            </div>
             {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
               <details className="relative">
                 <summary className="list-none cursor-pointer rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
