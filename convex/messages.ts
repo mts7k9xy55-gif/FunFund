@@ -6,6 +6,20 @@ import { mutation, query } from "./_generated/server";
 import { getUserOrNull, requireRoomMember, requireUser, requireWritePermission } from "./_guards";
 import { Id } from "./_generated/dataModel";
 
+function safeNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function compactUndefined<T extends Record<string, unknown>>(row: T): T {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+  return next as T;
+}
+
 /**
  * コメントを投稿
  * - 書き込みガード適用（active room + member/owner）
@@ -146,16 +160,28 @@ export const listThreadMessages = query({
       return [];
     }
 
-    const decisions = await ctx.db
-      .query("decisions")
-      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-      .collect();
+    const decisions = await (async () => {
+      try {
+        return await ctx.db
+          .query("decisions")
+          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+          .collect();
+      } catch {
+        return [];
+      }
+    })();
     const legacyDecisionReasonIds = new Set(decisions.map((decision) => decision.reasonMessageId));
 
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-      .collect();
+    const messages = await (async () => {
+      try {
+        return await ctx.db
+          .query("messages")
+          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+          .collect();
+      } catch {
+        return [];
+      }
+    })();
 
     return messages
       .filter((message) => {
@@ -167,6 +193,20 @@ export const listThreadMessages = query({
         }
         return membership.role === "owner" || message.createdBy === user._id;
       })
-      .sort((a, b) => a.createdAt - b.createdAt);
+      .map((message) =>
+        compactUndefined({
+          _id: message._id,
+          _creationTime: message._creationTime,
+          roomId: message.roomId,
+          threadId: message.threadId,
+          kind: message.kind,
+          body: typeof message.body === "string" ? message.body : "",
+          createdBy: message.createdBy,
+          createdAt: safeNumber(message.createdAt) ?? 0,
+          hiddenAt: safeNumber(message.hiddenAt),
+          hiddenBy: message.hiddenBy,
+        })
+      )
+      .sort((a, b) => (safeNumber(a.createdAt) ?? 0) - (safeNumber(b.createdAt) ?? 0));
   },
 });
