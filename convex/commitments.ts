@@ -66,7 +66,16 @@ export const listThreadCommitments = query({
     threadId: v.string(),
   },
   handler: async (ctx, args) => {
-    const normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    let normalizedThreadId = null;
+    try {
+      normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    } catch {
+      return {
+        commitments: [],
+        totalAmount: 0,
+        supporterCount: 0,
+      };
+    }
     if (!normalizedThreadId) {
       return {
         commitments: [],

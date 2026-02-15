@@ -57,7 +57,12 @@ export const listFinalDecisions = query({
     threadId: v.string(),
   },
   handler: async (ctx, args) => {
-    const normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    let normalizedThreadId = null;
+    try {
+      normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    } catch {
+      return [];
+    }
     if (!normalizedThreadId) {
       return [];
     }

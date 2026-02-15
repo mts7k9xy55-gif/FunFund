@@ -243,17 +243,16 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     }
     return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
   }, [roomsForMe, roomIdAsId]);
-  type LooseRecord = Record<string, any>;
-  const threadDetail = null as SafeThreadDetail | null;
-  const intents: LooseRecord[] = [];
-  const finalDecisions: LooseRecord[] = [];
-  const commitmentSummary = null as
-    | {
-        commitments: LooseRecord[];
-        totalAmount: number;
-        supporterCount: number;
-      }
-    | null;
+  const threadDetail = useQuery(
+    api.threads.getThread,
+    isUserReady ? { threadId } : "skip"
+  ) as SafeThreadDetail | null | undefined;
+  const intents =
+    useQuery(api.intents.listIntents, isUserReady ? { threadId } : "skip") ?? [];
+  const finalDecisions =
+    useQuery(api.finalDecisions.listFinalDecisions, isUserReady ? { threadId } : "skip") ?? [];
+  const commitmentSummary =
+    useQuery(api.commitments.listThreadCommitments, isUserReady ? { threadId } : "skip") ?? null;
   const usersQuery = useQuery(api.users.listUsers);
   const users = useMemo(() => usersQuery ?? [], [usersQuery]);
 
@@ -348,7 +347,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const canWriteToThread = Boolean(
     selectedRoom?.myRole !== "viewer" && !selectedThread?.archivedAt
   );
-  const isLoading = !isUserReady || selectedRoom === undefined;
+  const isLoading = !isUserReady || selectedRoom === undefined || threadDetail === undefined;
   const isMissing = selectedRoom === null || threadDetail === null;
   const isRoomThreadMismatch = Boolean(
     selectedRoom && selectedThread && selectedThread.roomId !== selectedRoom._id
