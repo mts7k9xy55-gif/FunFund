@@ -245,36 +245,45 @@ export const getRoom = query({
     roomId: v.string(),
   },
   handler: async (ctx, args) => {
-    const normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    let normalizedRoomId: Id<"rooms"> | null = null;
+    try {
+      normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    } catch {
+      return null;
+    }
     if (!normalizedRoomId) {
       return null;
     }
-    const user = await getUserOrNull(ctx);
-    if (!user) {
+    try {
+      const user = await getUserOrNull(ctx);
+      if (!user) {
+        return null;
+      }
+      const room = await ctx.db.get(normalizedRoomId);
+
+      if (!room) {
+        return null;
+      }
+
+      // メンバーかチェック
+      const memberships = await ctx.db
+        .query("roomMembers")
+        .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
+        .collect();
+
+      const membership = memberships.find((m) => m.userId === user._id);
+
+      if (!membership) {
+        return null;
+      }
+
+      return {
+        ...room,
+        myRole: membership.role,
+      };
+    } catch {
       return null;
     }
-    const room = await ctx.db.get(normalizedRoomId);
-
-    if (!room) {
-      return null;
-    }
-
-    // メンバーかチェック
-    const memberships = await ctx.db
-      .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", normalizedRoomId))
-      .collect();
-    
-    const membership = memberships.find((m) => m.userId === user._id);
-
-    if (!membership) {
-      return null;
-    }
-
-    return {
-      ...room,
-      myRole: membership.role,
-    };
   },
 });
 
@@ -286,7 +295,12 @@ export const listRoomMembers = query({
     roomId: v.string(),
   },
   handler: async (ctx, args) => {
-    const normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    let normalizedRoomId: Id<"rooms"> | null = null;
+    try {
+      normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    } catch {
+      return [];
+    }
     if (!normalizedRoomId) {
       return [];
     }

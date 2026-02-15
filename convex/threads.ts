@@ -227,7 +227,12 @@ export const listThreads = query({
     roomId: v.string(),
   },
   handler: async (ctx, args) => {
-    const normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    let normalizedRoomId = null;
+    try {
+      normalizedRoomId = ctx.db.normalizeId("rooms", args.roomId);
+    } catch {
+      return [];
+    }
     if (!normalizedRoomId) {
       return [];
     }
@@ -277,7 +282,12 @@ export const getThread = query({
     threadId: v.string(),
   },
   handler: async (ctx, args) => {
-    const normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    let normalizedThreadId = null;
+    try {
+      normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
+    } catch {
+      return null;
+    }
     if (!normalizedThreadId) {
       return null;
     }
