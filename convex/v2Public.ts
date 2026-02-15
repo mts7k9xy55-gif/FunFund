@@ -39,15 +39,13 @@ export const listPublicCatalog = query({
 
     return published
       .filter((row) => !!row.sourceItemId)
-      .filter((row) => row.evaluationCount > 0 || row.currentAmount > 0)
+      .filter((row) => row.currentAmount > 0 || row.decisions.length > 0)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((row) => ({
         id: row.sourceItemId!,
         title: row.title,
         description: row.description,
         thumbnailUrl: row.thumbnailUrl,
-        weightedScore: row.weightedScore,
-        evaluationCount: row.evaluationCount,
         currentAmount: row.currentAmount,
         goalAmount: row.goalAmount,
         daysRemaining: row.daysRemaining,
@@ -78,8 +76,6 @@ export const getPublicProject = query({
       decisions: v2.decisions,
       suitableFor: v2.suitableFor,
       notSuitableFor: v2.notSuitableFor,
-      weightedScore: v2.weightedScore,
-      evaluationCount: v2.evaluationCount,
       currentAmount: v2.currentAmount,
       goalAmount: v2.goalAmount,
       daysRemaining: v2.daysRemaining,

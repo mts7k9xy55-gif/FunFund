@@ -114,13 +114,8 @@ export default function PublicListPageV2() {
                 </div>
                 <h3 className="line-clamp-2 text-lg font-bold text-slate-900">{item.title}</h3>
                 <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{item.description ?? "説明はまだありません"}</p>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-500">
-                  <div className="rounded-md bg-slate-50 px-2 py-1">
-                    Score: {item.weightedScore.toFixed(2)}
-                  </div>
-                  <div className="rounded-md bg-slate-50 px-2 py-1">
-                    Eval: {item.evaluationCount}
-                  </div>
+                <div className="mt-4 rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-500">
+                  Fund: ¥{item.currentAmount.toLocaleString()}
                 </div>
                 <div className="mt-3 text-xs font-medium text-slate-500">
                   作成日: {new Date(item.createdAt).toLocaleDateString("ja-JP")}

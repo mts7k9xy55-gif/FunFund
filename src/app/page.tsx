@@ -32,16 +32,14 @@ export default function Home() {
             <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-700">01</p>
             <h2 className="mt-3 text-2xl font-bold text-slate-900">できること</h2>
             <p className="mt-3 text-base leading-8 text-slate-600">
-              Room作成、スレッド作成、意思決定ログ記録を最短手順で実行できます。
+              Room作成、スレッド作成、返信と議論を最短手順で実行できます。
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-700">02</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-900">
-              建設的な議論・意思決定
-            </h2>
+            <h2 className="mt-3 text-2xl font-bold text-slate-900">建設的な議論</h2>
             <p className="mt-3 text-base leading-8 text-slate-600">
-              提案理由と評価理由を明示して、判断を記録。誰が何を根拠に決めたかを残せます。
+              提案理由と反論・意見を積み上げて、返信しながら合意形成できます。
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

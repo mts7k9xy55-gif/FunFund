@@ -169,62 +169,19 @@ export const deleteThread = mutation({
 
     await requireOwnerPermission(ctx, thread.roomId, user._id);
 
-    const [messages, decisions, executions, layerInputs, evaluations, proposals, commitments] =
-      await Promise.all([
-        ctx.db
-          .query("messages")
-          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-        ctx.db
-          .query("decisions")
-          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-        ctx.db
-          .query("executions")
-          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-        ctx.db
-          .query("layerInputs")
-          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-        ctx.db
-          .query("evaluations")
-          .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-        ctx.db
-          .query("distributionProposals")
-          .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-        ctx.db
-          .query("commitments")
-          .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
-          .collect(),
-      ]);
-
-    for (const proposal of proposals) {
-      const payoutRows = await ctx.db
-        .query("payoutLedger")
-        .withIndex("by_distributionProposalId", (q) =>
-          q.eq("distributionProposalId", proposal._id)
-        )
-        .collect();
-      await Promise.all(
-        payoutRows.map((row) =>
-          ctx.db.patch(row._id, {
-            distributionProposalId: undefined,
-            updatedAt: Date.now(),
-          })
-        )
-      );
-    }
+    const [messages, commitments] = await Promise.all([
+      ctx.db
+        .query("messages")
+        .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+        .collect(),
+      ctx.db
+        .query("commitments")
+        .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+        .collect(),
+    ]);
 
     await Promise.all([
       ...messages.map((row) => ctx.db.delete(row._id)),
-      ...decisions.map((row) => ctx.db.delete(row._id)),
-      ...executions.map((row) => ctx.db.delete(row._id)),
-      ...layerInputs.map((row) => ctx.db.delete(row._id)),
-      ...evaluations.map((row) => ctx.db.delete(row._id)),
-      ...proposals.map((row) => ctx.db.delete(row._id)),
       ...commitments.map((row) => ctx.db.delete(row._id)),
     ]);
 
@@ -306,119 +263,5 @@ export const listThreads = query({
         };
       })
     );
-  },
-});
-
-/**
- * Threadの詳細を取得（メッセージ、判断、実行ログを含む）
- */
-export const getThread = query({
-  args: {
-    threadId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    let normalizedThreadId = null;
-    try {
-      normalizedThreadId = ctx.db.normalizeId("threads", args.threadId);
-    } catch {
-      return null;
-    }
-    if (!normalizedThreadId) {
-      return null;
-    }
-    try {
-      const user = await getUserOrNull(ctx);
-      if (!user) {
-        return null;
-      }
-      const thread = await ctx.db.get(normalizedThreadId);
-
-      if (!thread) {
-        return null;
-      }
-
-      // メンバーかチェック
-      const memberships = await ctx.db
-        .query("roomMembers")
-        .withIndex("by_room", (q) => q.eq("roomId", thread.roomId))
-        .collect();
-
-      const membership = memberships.find((m) => m.userId === user._id);
-
-      if (!membership) {
-        return null;
-      }
-
-      // データ不整合があってもスレッド画面を落とさない
-      let decisionsRaw: any[] = [];
-      try {
-        decisionsRaw = await ctx.db
-          .query("decisions")
-          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-          .collect();
-      } catch {
-        decisionsRaw = [];
-      }
-
-      const legacyDecisionReasonIds = new Set(
-        decisionsRaw.map((decision) => decision.reasonMessageId)
-      );
-
-      let messagesRaw: any[] = [];
-      try {
-        messagesRaw = await ctx.db
-          .query("messages")
-          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-          .collect();
-      } catch {
-        messagesRaw = [];
-      }
-      const messages = messagesRaw.filter((message) => {
-        if (
-          message.kind === "reason" &&
-          legacyDecisionReasonIds.has(message._id)
-        ) {
-          return false;
-        }
-
-        if (!message.hiddenAt) {
-          return true;
-        }
-        return membership.role === "owner" || message.createdBy === user._id;
-      });
-
-      const decisions = decisionsRaw.filter((decision) => {
-        const visibility = decision.visibility ?? "private";
-        if (decision.createdBy === user._id) {
-          return true;
-        }
-        if (visibility === "public") {
-          return true;
-        }
-        if (visibility === "shared_to_target" && decision.targetUserId === user._id) {
-          return true;
-        }
-        return false;
-      });
-
-      let executions: any[] = [];
-      try {
-        executions = await ctx.db
-          .query("executions")
-          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-          .collect();
-      } catch {
-        executions = [];
-      }
-
-      return {
-        thread,
-        messages,
-        decisions,
-        executions,
-      };
-    } catch {
-      return null;
-    }
   },
 });

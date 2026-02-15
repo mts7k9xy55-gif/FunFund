@@ -38,9 +38,7 @@ export default function RoomSelector({
       const roomId = await createRoom({
         name,
         isPrivate: mode === "closed",
-        evaluationMode: mode,
       });
-      // Roomはdraft状態で作成される（Stripe決済後にactiveになる）
       onSelectRoom(roomId);
       onCreateRoom();
     } catch (error: any) {

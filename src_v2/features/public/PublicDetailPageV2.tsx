@@ -78,15 +78,7 @@ export default function PublicDetailPageV2({ id }: PublicDetailPageV2Props) {
           <div className="p-6 md:p-8">
             <h1 className="text-3xl font-black tracking-tight text-slate-900">{preview.title}</h1>
             <p className="mt-4 text-base leading-7 text-slate-700">{preview.description}</p>
-            <div className="mt-5 grid grid-cols-2 gap-3 text-sm text-slate-600 md:grid-cols-4">
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Score</p>
-                <p className="mt-1 font-semibold text-slate-900">{preview.weightedScore.toFixed(2)}</p>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Evaluations</p>
-                <p className="mt-1 font-semibold text-slate-900">{preview.evaluationCount}</p>
-              </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm text-slate-600 md:grid-cols-2">
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Fund</p>
                 <p className="mt-1 font-semibold text-slate-900">¥{preview.currentAmount.toLocaleString()}</p>

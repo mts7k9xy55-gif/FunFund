@@ -4,7 +4,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getUserOrNull, requireRoomMember, requireUser, requireWritePermission } from "./_guards";
-import { Id } from "./_generated/dataModel";
 
 function safeNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -89,7 +88,6 @@ export const setMessageHidden = mutation({
 /**
  * 返信を削除
  * - owner または 送信者のみ
- * - decisions.reasonMessageId に紐づく理由は削除不可
  */
 export const deleteMessage = mutation({
   args: {
@@ -106,17 +104,6 @@ export const deleteMessage = mutation({
     const canModerate = membership.role === "owner" || message.createdBy === user._id;
     if (!canModerate) {
       throw new Error("Only room owner or sender can delete message");
-    }
-
-    const decisions = await ctx.db
-      .query("decisions")
-      .withIndex("by_thread", (q) => q.eq("threadId", message.threadId))
-      .collect();
-    const boundToDecision = decisions.some(
-      (decision) => decision.reasonMessageId === args.messageId
-    );
-    if (boundToDecision) {
-      throw new Error("Decision reason message cannot be deleted");
     }
 
     await ctx.db.delete(args.messageId);
@@ -160,18 +147,6 @@ export const listThreadMessages = query({
       return [];
     }
 
-    const decisions = await (async () => {
-      try {
-        return await ctx.db
-          .query("decisions")
-          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-          .collect();
-      } catch {
-        return [];
-      }
-    })();
-    const legacyDecisionReasonIds = new Set(decisions.map((decision) => decision.reasonMessageId));
-
     const messages = await (async () => {
       try {
         return await ctx.db
@@ -185,9 +160,6 @@ export const listThreadMessages = query({
 
     return messages
       .filter((message) => {
-        if (message.kind === "reason" && legacyDecisionReasonIds.has(message._id)) {
-          return false;
-        }
         if (!message.hiddenAt) {
           return true;
         }

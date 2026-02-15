@@ -103,7 +103,7 @@ export const registerStripeEventHttp = httpAction(async (ctx, request) => {
     return new Response("Missing eventId or eventType", { status: 400 });
   }
 
-  const result = await ctx.runMutation(api.v2Migration.registerStripeWebhookEvent, {
+  const result = await ctx.runMutation(api.stripeEvents.registerWebhookEvent, {
     eventId,
     eventType,
   });

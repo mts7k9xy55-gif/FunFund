@@ -6,7 +6,7 @@ export default function TermsPage() {
       <article className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
         <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">利用規約</h1>
         <p className="mt-3 text-sm leading-7 text-slate-600">
-          本サービスは Room 内の議論・評価・資金配分の意思決定支援を目的としています。法令違反、公序良俗違反、第三者の権利侵害に当たる利用を禁止します。
+          本サービスは Room 内の議論・返信・資金支援コミュニケーションを目的としています。法令違反、公序良俗違反、第三者の権利侵害に当たる利用を禁止します。
         </p>
 
         <section className="mt-8 space-y-4 text-sm leading-7 text-slate-700">

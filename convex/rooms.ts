@@ -30,7 +30,6 @@ export const createRoom = mutation({
   args: {
     name: v.string(),
     isPrivate: v.optional(v.boolean()),
-    evaluationMode: v.optional(v.union(v.literal("open"), v.literal("closed"))),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -44,7 +43,6 @@ export const createRoom = mutation({
       status: "draft", // 作成時はdraft
       isPrivate,
       inviteCode,
-      evaluationMode: args.evaluationMode ?? "open",
       virtualFundBalance: 0,
       createdAt: Date.now(),
     });
@@ -585,122 +583,6 @@ export const deleteRoom = mutation({
     });
 
     return args.roomId;
-  },
-});
-
-/**
- * Roomの仮想Fund残高を取得
- */
-export const getRoomVirtualFundBalance = query({
-  args: {
-    roomId: v.id("rooms"),
-  },
-  handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
-
-    const room = await ctx.db.get(args.roomId);
-    if (!room) {
-      return null;
-    }
-
-    // メンバーかチェック
-    const memberships = await ctx.db
-      .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
-
-    const membership = memberships.find((m) => m.userId === user._id);
-    if (!membership) {
-      throw new Error("You are not a member of this room");
-    }
-
-    // 評価から仮想Fund残高を計算
-    // 各Threadの平均評価スコアに基づいて仮想的なFundを計算
-    const threads = await ctx.db
-      .query("threads")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
-
-    let totalFund = 0;
-
-    for (const thread of threads) {
-      const evaluations = await ctx.db
-        .query("evaluations")
-        .withIndex("by_threadId", (q) => q.eq("threadId", thread._id))
-        .collect();
-
-      if (evaluations.length > 0) {
-        const avgScore =
-          evaluations.reduce((sum, e) => sum + e.weightedScore, 0) /
-          evaluations.length;
-        // スコア（1-5）を仮想Fund（0-1000）に変換
-        const fundValue = (avgScore / 5) * 1000;
-        totalFund += fundValue;
-      }
-    }
-
-    // Roomの仮想Fund残高を更新（非同期で更新する場合は別途mutationが必要）
-    return {
-      balance: Math.round(totalFund),
-      threadCount: threads.length,
-    };
-  },
-});
-
-/**
- * Roomの仮想Fund残高を更新（内部用）
- */
-export const updateRoomVirtualFundBalance = mutation({
-  args: {
-    roomId: v.id("rooms"),
-  },
-  handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
-
-    const room = await ctx.db.get(args.roomId);
-    if (!room) {
-      throw new Error("Room not found");
-    }
-
-    // メンバーかチェック
-    const memberships = await ctx.db
-      .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
-
-    const membership = memberships.find((m) => m.userId === user._id);
-    if (!membership) {
-      throw new Error("You are not a member of this room");
-    }
-
-    // 評価から仮想Fund残高を計算
-    const threads = await ctx.db
-      .query("threads")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
-
-    let totalFund = 0;
-
-    for (const thread of threads) {
-      const evaluations = await ctx.db
-        .query("evaluations")
-        .withIndex("by_threadId", (q) => q.eq("threadId", thread._id))
-        .collect();
-
-      if (evaluations.length > 0) {
-        const avgScore =
-          evaluations.reduce((sum, e) => sum + e.weightedScore, 0) /
-          evaluations.length;
-        const fundValue = (avgScore / 5) * 1000;
-        totalFund += fundValue;
-      }
-    }
-
-    await ctx.db.patch(args.roomId, {
-      virtualFundBalance: Math.round(totalFund),
-    });
-
-    return Math.round(totalFund);
   },
 });
 

@@ -20,7 +20,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <div className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <h1 className="text-2xl font-black text-slate-900">FunFund Room</h1>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            建設的な議論と意思決定、そして支援実行はログイン後に利用できます。
+            建設的な議論、返信、支援コミットはログイン後に利用できます。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <SignInButton mode="modal">
