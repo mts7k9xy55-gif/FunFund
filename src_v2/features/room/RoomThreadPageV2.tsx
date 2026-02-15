@@ -547,8 +547,20 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
       return;
     }
 
-    const confirmed = window.confirm("このスレッドを削除します。元に戻せません。");
-    if (!confirmed) return;
+    const targetTitle =
+      selectedThread?._id === threadIdValue ? (selectedThread.title ?? "Untitled") : "Untitled";
+    const typedTitle = window.prompt(
+      `削除するにはスレッド名を入力してください:\n${targetTitle}`
+    );
+    if (typedTitle !== targetTitle) {
+      setUiFeedback("スレッド名が一致しないため削除を中止しました");
+      return;
+    }
+    const finalPhrase = window.prompt("最終確認: DELETE と入力してください");
+    if (finalPhrase !== "DELETE") {
+      setUiFeedback("確認語が一致しないため削除を中止しました");
+      return;
+    }
 
     setThreadActionId(threadIdValue);
     try {
@@ -568,7 +580,14 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-[1700px] items-start justify-between gap-4 px-4 py-3 md:px-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund</h1>
+            <h1>
+              <Link
+                href="/room"
+                className="text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800"
+              >
+                FunFund
+              </Link>
+            </h1>
           </div>
           <div className="flex flex-col items-end gap-2">
             <RoomAccountControls />

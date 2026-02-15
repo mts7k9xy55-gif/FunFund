@@ -58,12 +58,20 @@ export default function RoomSelector({
       return;
     }
 
-    const confirmed = window.confirm(
+    const typedRoomName = window.prompt(
       language === "ja"
-        ? `Room「${selectedRoom.name}」を削除します。元に戻せません。続行しますか？`
-        : `Delete room "${selectedRoom.name}"? This cannot be undone.`
+        ? `削除するには部屋名を入力してください:\n${selectedRoom.name}`
+        : `Type the room name to delete:\n${selectedRoom.name}`
     );
-    if (!confirmed) {
+    if (typedRoomName !== selectedRoom.name) {
+      alert(language === "ja" ? "部屋名が一致しないため削除を中止しました" : "Room name mismatch");
+      return;
+    }
+    const finalPhrase = window.prompt(
+      language === "ja" ? "最終確認: DELETE と入力してください" : "Final confirmation: type DELETE"
+    );
+    if (finalPhrase !== "DELETE") {
+      alert(language === "ja" ? "確認語が一致しないため削除を中止しました" : "Confirmation mismatch");
       return;
     }
 

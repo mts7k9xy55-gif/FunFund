@@ -521,7 +521,18 @@ export default function RoomPageV2() {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-[1700px] items-start justify-between gap-4 px-4 py-3 md:px-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-blue-700">FunFund</h1>
+            <h1>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRoomId(null);
+                  setRoomSelectionMessage(null);
+                }}
+                className="text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800"
+              >
+                FunFund
+              </button>
+            </h1>
           </div>
           <div className="flex flex-col items-end gap-2">
             <RoomAccountControls />
