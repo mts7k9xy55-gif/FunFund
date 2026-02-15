@@ -25,6 +25,13 @@ interface RoomThreadPageV2Props {
   threadId: string;
 }
 
+type SafeThreadDetail = {
+  thread: any;
+  messages: any[];
+  decisions: any[];
+  executions: any[];
+};
+
 class ThreadPageErrorBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean }
@@ -239,7 +246,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const threadDetail = useQuery(
     api.threadView.getThreadView,
     isUserReady ? { threadId: threadIdAsId } : "skip"
-  );
+  ) as SafeThreadDetail | null | undefined;
   const intents =
     useQuery(api.intents.listIntents, isUserReady ? { threadId: threadIdAsId } : "skip") ?? [];
   const finalDecisions =
@@ -797,7 +804,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                       選択肢
                     </p>
                     <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                      {selectedThread.options.map((option, index) => (
+                      {selectedThread.options.map((option: string, index: number) => (
                         <li key={`${option}-${index}`}>{index + 1}. {option}</li>
                       ))}
                     </ul>
