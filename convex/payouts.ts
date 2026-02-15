@@ -333,6 +333,39 @@ export const registerPayoutAccountByClerkUserId = mutation({
   handler: async (ctx, args) => await registerPayoutAccountCore(ctx, args),
 });
 
+export const registerMyBankAccount = mutation({
+  args: {
+    bankName: v.string(),
+    bankCode: v.optional(v.string()),
+    branchName: v.optional(v.string()),
+    branchCode: v.optional(v.string()),
+    accountType: v.optional(
+      v.union(v.literal("ordinary"), v.literal("checking"), v.literal("savings"))
+    ),
+    accountNumber: v.string(),
+    accountHolderName: v.optional(v.string()),
+    onlineBankingUrl: v.optional(v.string()),
+    isDefault: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    return await registerPayoutAccountCore(ctx, {
+      clerkUserId: user.userId,
+      method: "bank_account",
+      status: "active",
+      bankName: args.bankName,
+      bankCode: args.bankCode,
+      branchName: args.branchName,
+      branchCode: args.branchCode,
+      accountType: args.accountType ?? "ordinary",
+      accountNumber: args.accountNumber,
+      accountHolderName: args.accountHolderName,
+      onlineBankingUrl: args.onlineBankingUrl,
+      isDefault: args.isDefault ?? true,
+    });
+  },
+});
+
 export const createPayoutRequestByClerkUserId = mutation({
   args: {
     clerkUserId: v.string(),

@@ -51,12 +51,12 @@ class ThreadPageErrorBoundary extends Component<
             <p className="mt-2 text-sm text-slate-600">
               読み込み中に問題が発生しました。部屋一覧から開き直してください。
             </p>
-            <a
+            <Link
               href="/room"
               className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
               部屋に戻る
-            </a>
+            </Link>
           </div>
         </div>
       );
@@ -155,10 +155,6 @@ function renderBodyWithLinks(body: string) {
   return elements.length ? elements : [<span key="text-0">{body}</span>];
 }
 
-function formatCurrencyYen(value: number) {
-  return `¥${Math.max(0, Math.round(value)).toLocaleString("ja-JP")}`;
-}
-
 async function handleImagePasteToField(
   event: ClipboardEvent<HTMLTextAreaElement>,
   setField: Dispatch<SetStateAction<string>>,
@@ -223,6 +219,18 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
 
   const roomIdAsId = roomId as Id<"rooms">;
   const threadIdAsId = threadId as Id<"threads">;
+  type LocalThread = {
+    _id: Id<"threads">;
+    roomId: Id<"rooms">;
+    title: string;
+    createdAt: number;
+    archivedAt?: number;
+    commitmentGoalAmount?: number;
+    decisionOwnerId?: Id<"users">;
+    dueAt?: number;
+    meetingUrl?: string;
+    options?: string[];
+  };
 
   const createUserMutation = useMutation(api.users.createUser);
   const postComment = useMutation(api.messages.postComment);
@@ -230,7 +238,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const deleteMessage = useMutation(api.messages.deleteMessage);
   const setThreadArchived = useMutation(api.threads.setThreadArchived);
   const deleteThread = useMutation(api.threads.deleteThread);
-  const upsertCommitment = useMutation(api.commitments.upsertCommitment);
+  const registerMyBankAccount = useMutation(api.payouts.registerMyBankAccount);
   const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
@@ -242,19 +250,18 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     return roomsForMe.find((room) => room._id === roomIdAsId) ?? null;
   }, [roomsForMe, roomIdAsId]);
   const selectedThread = useMemo(
-    () =>
-      ({
-        _id: threadIdAsId,
-        roomId: roomIdAsId,
-        title: "スレッド",
-        createdAt: Date.now(),
-        archivedAt: undefined,
-        commitmentGoalAmount: undefined,
-        decisionOwnerId: undefined,
-        dueAt: undefined,
-        meetingUrl: undefined,
-        options: undefined,
-      }) as any,
+    (): LocalThread => ({
+      _id: threadIdAsId,
+      roomId: roomIdAsId,
+      title: "スレッド",
+      createdAt: Date.now(),
+      archivedAt: undefined,
+      commitmentGoalAmount: undefined,
+      decisionOwnerId: undefined,
+      dueAt: undefined,
+      meetingUrl: undefined,
+      options: undefined,
+    }),
     [threadIdAsId, roomIdAsId]
   );
   const threadMessagesQuery = useQuery(
@@ -262,8 +269,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     isUserReady ? { threadId } : "skip"
   );
   const threadMessages = useMemo(() => threadMessagesQuery ?? [], [threadMessagesQuery]);
-  const commitmentSummary =
-    useQuery(api.commitments.listThreadCommitments, isUserReady ? { threadId } : "skip") ?? null;
   const myPayoutAccounts =
     useQuery(api.payouts.listMyPayoutAccounts, isUserReady ? {} : "skip") ?? [];
   const usersQuery = useQuery(api.users.listUsers);
@@ -276,9 +281,6 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   const [replyBody, setReplyBody] = useState("");
   const [replyTone, setReplyTone] = useState<ReplyTone>("意見");
   const [postingReply, setPostingReply] = useState(false);
-  const [commitmentAmountInput, setCommitmentAmountInput] = useState("1000");
-  const [commitmentNoteInput, setCommitmentNoteInput] = useState("");
-  const [savingCommitment, setSavingCommitment] = useState(false);
   const [bankNameInput, setBankNameInput] = useState("");
   const [bankCodeInput, setBankCodeInput] = useState("");
   const [branchNameInput, setBranchNameInput] = useState("");
@@ -288,6 +290,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
   );
   const [accountNumberInput, setAccountNumberInput] = useState("");
   const [accountHolderNameInput, setAccountHolderNameInput] = useState("");
+  const [onlineBankingUrlInput, setOnlineBankingUrlInput] = useState("");
   const [savingBank, setSavingBank] = useState(false);
   const [bankFeedback, setBankFeedback] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
@@ -341,16 +344,9 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     [threadMessages]
   );
 
-  const commitmentRows = commitmentSummary?.commitments ?? [];
-  const commitmentTotal = commitmentSummary?.totalAmount ?? 0;
-  const commitmentSupporterCount = commitmentSummary?.supporterCount ?? 0;
   const activeBankAccount = myPayoutAccounts.find(
     (account) => account.method === "bank_account" && account.status === "active"
   );
-  const myCommitment =
-    currentConvexUser
-      ? commitmentRows.find((row) => row.supporterUserId === currentConvexUser._id) ?? null
-      : null;
 
   const canModerateMessage = (createdBy: Id<"users">) =>
     selectedRoom?.myRole === "owner" || currentConvexUser?._id === createdBy;
@@ -479,57 +475,23 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
     setSavingBank(true);
     setBankFeedback(null);
     try {
-      const response = await fetch("/api/payouts/bank/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bankName,
-          bankCode: bankCodeInput.trim() || undefined,
-          branchName: branchNameInput.trim() || undefined,
-          branchCode: branchCodeInput.trim() || undefined,
-          accountType: accountTypeInput,
-          accountNumber,
-          accountHolderName: accountHolderNameInput.trim() || undefined,
-          isDefault: true,
-        }),
+      await registerMyBankAccount({
+        bankName,
+        bankCode: bankCodeInput.trim() || undefined,
+        branchName: branchNameInput.trim() || undefined,
+        branchCode: branchCodeInput.trim() || undefined,
+        accountType: accountTypeInput,
+        accountNumber,
+        accountHolderName: accountHolderNameInput.trim() || undefined,
+        onlineBankingUrl: onlineBankingUrlInput.trim() || undefined,
+        isDefault: true,
       });
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      if (!response.ok) {
-        throw new Error(payload.error ?? "口座接続に失敗しました");
-      }
-      setBankFeedback("銀行口座を接続しました");
+      setBankFeedback("銀行口座を保存しました");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "口座接続に失敗しました";
+      const message = error instanceof Error ? error.message : "口座保存に失敗しました";
       setBankFeedback(message);
     } finally {
       setSavingBank(false);
-    }
-  };
-
-  const handleSubmitCommitment = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!selectedThread) return;
-    const amount = Number(commitmentAmountInput);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setUiFeedback("コミット金額は1円以上で入力してください");
-      return;
-    }
-
-    setSavingCommitment(true);
-    try {
-      await upsertCommitment({
-        roomId: selectedThread.roomId,
-        threadId: selectedThread._id,
-        amount,
-        note: commitmentNoteInput.trim() || undefined,
-      });
-      setCommitmentNoteInput("");
-      setUiFeedback("コミットを保存しました");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "コミット保存に失敗しました";
-      setUiFeedback(message);
-    } finally {
-      setSavingCommitment(false);
     }
   };
 
@@ -725,11 +687,8 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                   <span className="rounded bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
                     企画カード
                   </span>
-                  <span className="rounded bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    コミット {formatCurrencyYen(commitmentTotal)}
-                    {selectedThread.commitmentGoalAmount
-                      ? ` / ${formatCurrencyYen(selectedThread.commitmentGoalAmount)}`
-                      : ""}
+                  <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    銀行送金のみ
                   </span>
                 </div>
               </div>
@@ -890,7 +849,7 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                   <h3 className="text-xl font-black text-slate-900">銀行口座を接続</h3>
                   <p className="mt-1 text-sm text-slate-600">
-                    資金援助を円滑にするため、まず受取口座を登録します。
+                    実際の送金時に使う受取口座を登録します（銀行間送金のみ）。
                   </p>
                   {activeBankAccount ? (
                     <p className="mt-2 text-xs font-semibold text-emerald-700">
@@ -946,83 +905,60 @@ function RoomThreadPageV2Content({ roomId, threadId }: RoomThreadPageV2Props) {
                       placeholder="口座名義（任意）"
                       className="w-full rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
                     />
+                    <input
+                      value={onlineBankingUrlInput}
+                      onChange={(event) => setOnlineBankingUrlInput(event.target.value)}
+                      placeholder="ネットバンクURL（任意）"
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+                    />
                     <div className="md:col-span-2">
                       <button
                         type="submit"
                         disabled={savingBank}
                         className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
                       >
-                        {savingBank ? "接続中..." : "銀行口座を接続"}
+                        {savingBank ? "保存中..." : "銀行口座を保存"}
                       </button>
                       {bankFeedback ? <p className="mt-2 text-xs text-slate-600">{bankFeedback}</p> : null}
-                    </div>
-                  </form>
-                </div>
-
-                <div>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-black text-slate-900">コミット（資金支援）</h3>
-                    <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                      支援者 {commitmentSupporterCount}
-                    </span>
-                  </div>
-                  <p className="mb-3 text-sm text-slate-500">
-                    ここでは支払い確定ではなく、実行意思のコミットを記録します。
-                  </p>
-
-                  <form onSubmit={handleSubmitCommitment} className="space-y-2 rounded-lg border border-slate-200 p-4">
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <input
-                        value={commitmentAmountInput}
-                        onChange={(event) =>
-                          setCommitmentAmountInput(event.target.value.replace(/[^0-9]/g, ""))
-                        }
-                        placeholder="コミット金額（円）"
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <input
-                        value={commitmentNoteInput}
-                        onChange={(event) => setCommitmentNoteInput(event.target.value)}
-                        placeholder="メモ（任意）"
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                      />
-                    </div>
-                    {myCommitment ? (
-                      <p className="text-xs text-slate-500">
-                        あなたの現在のコミット: {formatCurrencyYen(myCommitment.amount)}
-                      </p>
-                    ) : null}
-                    <button
-                      type="submit"
-                      disabled={!canWriteToThread || savingCommitment || !commitmentAmountInput.trim()}
-                      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {savingCommitment ? "保存中..." : "コミットを保存"}
-                    </button>
-                  </form>
-
-                  {commitmentRows.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-500">コミットはまだありません。</p>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {commitmentRows.map((commitment) => (
-                        <div key={commitment._id} className="rounded-lg border border-slate-200 p-3">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <span className="rounded bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
-                              {formatCurrencyYen(commitment.amount)}
-                            </span>
-                            <span>{commitment.supporterName}</span>
-                            <span>{new Date(commitment.updatedAt).toLocaleString("ja-JP")}</span>
-                          </div>
-                          {commitment.note ? (
-                            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                              {renderBodyWithLinks(commitment.note)}
-                            </p>
+                      {activeBankAccount ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const lines = [
+                                `銀行名: ${activeBankAccount.bankName ?? "-"}`,
+                                `銀行コード: ${activeBankAccount.bankCode ?? "-"}`,
+                                `支店名: ${activeBankAccount.branchName ?? "-"}`,
+                                `支店コード: ${activeBankAccount.branchCode ?? "-"}`,
+                                `口座種別: ${activeBankAccount.accountType ?? "-"}`,
+                                `口座番号: ${activeBankAccount.accountNumber ?? "****" + (activeBankAccount.accountLast4 ?? "")}`,
+                                `口座名義: ${activeBankAccount.accountHolderName ?? "-"}`,
+                              ].join("\n");
+                              try {
+                                await navigator.clipboard.writeText(lines);
+                                setBankFeedback("振込テンプレをコピーしました");
+                              } catch {
+                                setBankFeedback("コピーに失敗しました");
+                              }
+                            }}
+                            className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                          >
+                            振込テンプレをコピー
+                          </button>
+                          {activeBankAccount.onlineBankingUrl ? (
+                            <a
+                              href={activeBankAccount.onlineBankingUrl}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            >
+                              ネットバンクを開く
+                            </a>
                           ) : null}
                         </div>
-                      ))}
+                      ) : null}
                     </div>
-                  )}
+                  </form>
                 </div>
 
               </div>
