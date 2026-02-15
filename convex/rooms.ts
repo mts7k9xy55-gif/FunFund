@@ -185,6 +185,52 @@ export const listRoomsForMe = query({
 });
 
 /**
+ * 広場向け: オープンなRoom一覧を取得
+ * - 非private
+ * - canceled以外
+ * - 参加済みかどうかを返す
+ */
+export const listOpenCommunityRooms = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getUserOrNull(ctx);
+    const joinedRoomIds = new Set<Id<"rooms">>();
+
+    if (user) {
+      const memberships = await ctx.db
+        .query("roomMembers")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      for (const membership of memberships) {
+        joinedRoomIds.add(membership.roomId);
+      }
+    }
+
+    const allRooms = await ctx.db.query("rooms").collect();
+    const openRooms = allRooms.filter((room) => !room.isPrivate && room.status !== "canceled");
+
+    return await Promise.all(
+      openRooms.map(async (room) => {
+        const members = await ctx.db
+          .query("roomMembers")
+          .withIndex("by_room", (q) => q.eq("roomId", room._id))
+          .collect();
+        const owner = await ctx.db.get(room.ownerId);
+
+        return {
+          _id: room._id,
+          name: room.name,
+          ownerName: owner?.name ?? "Unknown",
+          memberCount: members.length,
+          joined: joinedRoomIds.has(room._id),
+          createdAt: room.createdAt,
+        };
+      })
+    );
+  },
+});
+
+/**
  * Roomの詳細を取得
  */
 export const getRoom = query({
@@ -365,6 +411,45 @@ export const joinRoomByInviteCode = mutation({
     });
 
     return room._id;
+  },
+});
+
+/**
+ * オープンRoomに参加
+ */
+export const joinOpenRoom = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+    if (room.isPrivate) {
+      throw new Error("This room requires invite code");
+    }
+    if (room.status === "canceled") {
+      throw new Error("This room is unavailable");
+    }
+
+    const memberships = await ctx.db
+      .query("roomMembers")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
+    const existing = memberships.find((row) => row.userId === user._id);
+    if (existing) {
+      return args.roomId;
+    }
+
+    await ctx.db.insert("roomMembers", {
+      roomId: args.roomId,
+      userId: user._id,
+      role: "member",
+      joinedAt: Date.now(),
+    });
+    return args.roomId;
   },
 });
 

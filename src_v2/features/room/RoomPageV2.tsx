@@ -100,12 +100,14 @@ export default function RoomPageV2() {
   const createUserMutation = useMutation(api.users.createUser);
   const createThreadV2 = useMutation(api.v2Room.createThreadV2);
   const joinRoomByInviteCode = useMutation(api.rooms.joinRoomByInviteCode);
+  const joinOpenRoom = useMutation(api.rooms.joinOpenRoom);
   const createImageUploadUrl = useMutation(api.uploads.createImageUploadUrl);
   const resolveImageUrl = useMutation(api.uploads.resolveImageUrl);
 
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [joiningByInviteCode, setJoiningByInviteCode] = useState(false);
+  const [joiningOpenRoomId, setJoiningOpenRoomId] = useState<Id<"rooms"> | null>(null);
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [isThreadComposerOpen, setIsThreadComposerOpen] = useState(false);
@@ -187,6 +189,10 @@ export default function RoomPageV2() {
     isUserReady && effectiveRoomId ? { roomId: effectiveRoomId } : "skip"
   );
   const roomThreads = useMemo(() => roomThreadsQuery ?? [], [roomThreadsQuery]);
+  const openCommunityRooms = useQuery(
+    api.rooms.listOpenCommunityRooms,
+    isUserReady ? {} : "skip"
+  ) ?? [];
 
   const myPayoutAccounts = useQuery(
     api.payouts.listMyPayoutAccounts,
@@ -212,6 +218,10 @@ export default function RoomPageV2() {
   const activeThreads = useMemo(
     () => roomThreads.filter((thread) => !thread.archivedAt),
     [roomThreads]
+  );
+  const discoverableOpenRooms = useMemo(
+    () => openCommunityRooms.filter((room) => !room.joined),
+    [openCommunityRooms]
   );
   const archivedThreads = useMemo(
     () => roomThreads.filter((thread) => Boolean(thread.archivedAt)),
@@ -516,6 +526,21 @@ export default function RoomPageV2() {
     }
   };
 
+  const handleJoinOpenCommunity = async (roomId: Id<"rooms">) => {
+    setJoiningOpenRoomId(roomId);
+    setRoomSelectionMessage(null);
+    try {
+      const joinedRoomId = await joinOpenRoom({ roomId });
+      setSelectedRoomId(joinedRoomId);
+      setRoomSelectionMessage("広場に参加しました");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "参加に失敗しました";
+      setRoomSelectionMessage(message);
+    } finally {
+      setJoiningOpenRoomId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7fbff] via-[#f9f8ff] to-[#f8fafb]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -528,7 +553,7 @@ export default function RoomPageV2() {
                   setSelectedRoomId(null);
                   setRoomSelectionMessage(null);
                 }}
-                className="text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800"
+                className="cursor-pointer text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800 hover:underline"
               >
                 FunFund
               </button>
@@ -542,6 +567,18 @@ export default function RoomPageV2() {
               language="ja"
               onCreateRoom={() => {}}
             />
+            {selectedRoom ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRoomId(null);
+                  setRoomSelectionMessage(null);
+                }}
+                className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                部屋選択に戻る
+              </button>
+            ) : null}
             {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
               <details className="relative">
                 <summary className="list-none cursor-pointer rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
@@ -595,21 +632,60 @@ export default function RoomPageV2() {
           <div className="space-y-4">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-bold text-slate-900">部屋を選択</h2>
-              <p className="mt-1 text-sm text-slate-500">参加済みの部屋を選ぶか、招待コードで参加してください。</p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {rooms.map((room) => (
-                  <button
-                    key={room._id}
-                    type="button"
-                    onClick={() => setSelectedRoomId(room._id)}
-                    className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm"
-                  >
-                    <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {room.isPrivate ? "プライベート" : "オープン"} / {room.myRole}
-                    </p>
-                  </button>
-                ))}
+              <p className="mt-1 text-sm text-slate-500">参加中のチームと、公開されている広場を分けて表示しています。</p>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+                  <h3 className="text-base font-bold text-slate-900">チーム</h3>
+                  <p className="mt-1 text-xs text-slate-500">参加中の部屋</p>
+                  {rooms.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-500">まだ参加している部屋がありません。</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {rooms.map((room) => (
+                        <button
+                          key={room._id}
+                          type="button"
+                          onClick={() => setSelectedRoomId(room._id)}
+                          className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm"
+                        >
+                          <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {room.isPrivate ? "プライベート" : "オープン"} / {room.myRole}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
+                <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+                  <h3 className="text-base font-bold text-slate-900">広場</h3>
+                  <p className="mt-1 text-xs text-slate-500">オープンなコミュニティ</p>
+                  {discoverableOpenRooms.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-500">参加可能な広場はありません。</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {discoverableOpenRooms.map((room) => (
+                        <div
+                          key={room._id}
+                          className="rounded-xl border border-slate-200 bg-white p-4"
+                        >
+                          <p className="truncate text-lg font-semibold text-slate-900">{room.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            オーナー: {room.ownerName} / 参加者 {room.memberCount} 人
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void handleJoinOpenCommunity(room._id)}
+                            disabled={joiningOpenRoomId === room._id}
+                            className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                          >
+                            {joiningOpenRoomId === room._id ? "参加中..." : "参加する"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               </div>
             </section>
 

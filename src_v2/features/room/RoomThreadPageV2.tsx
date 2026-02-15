@@ -583,7 +583,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
             <h1>
               <Link
                 href="/room"
-                className="text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800"
+                className="cursor-pointer text-2xl font-black tracking-tight text-blue-700 transition hover:text-blue-800 hover:underline"
               >
                 FunFund
               </Link>
@@ -596,7 +596,7 @@ export default function RoomThreadPageV2({ roomId, threadId }: RoomThreadPageV2P
                 href="/room"
                 className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
               >
-                一覧に戻る
+                部屋選択に戻る
               </Link>
               {selectedRoom?.isPrivate && selectedRoom?.inviteCode ? (
                 <details className="relative">

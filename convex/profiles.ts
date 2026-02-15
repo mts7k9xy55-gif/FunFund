@@ -104,6 +104,7 @@ export const getMyProfile = query({
       profileId: profile?._id ?? null,
       displayName: profile?.displayName ?? user?.name ?? identity.name ?? null,
       avatarUrl: profile?.avatarUrl ?? null,
+      avatarEmoji: profile?.avatarEmoji ?? null,
     };
   },
 });
@@ -112,6 +113,7 @@ export const upsertMyProfile = mutation({
   args: {
     displayName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    avatarEmoji: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
