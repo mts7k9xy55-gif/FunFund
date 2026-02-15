@@ -879,7 +879,7 @@ export default function RoomPageV2() {
                     <Link
                       key={thread._id}
                       href={`/room/${selectedRoom._id}/thread/${thread._id}`}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-5 text-left transition hover:border-slate-300 hover:shadow-sm"
+                      className="block w-full rounded-2xl border border-slate-200 bg-white px-5 py-5 text-left transition hover:border-slate-300 hover:shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <p className="line-clamp-2 text-2xl font-black text-slate-900">{thread.title ?? "Untitled"}</p>
