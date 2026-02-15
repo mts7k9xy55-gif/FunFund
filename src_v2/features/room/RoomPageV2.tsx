@@ -75,7 +75,7 @@ async function handleImagePasteToField(
     const imageUrl = await resolveImageUrl({
       storageId: uploadPayload.storageId as Id<"_storage">,
     });
-    const inserted = `${start > 0 ? "\n" : ""}${imageUrl}\n`;
+    const inserted = `${start > 0 ? "\n" : ""}![貼り付け画像](${imageUrl})\n`;
     setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
   } catch {
     onError("画像の貼り付けに失敗しました");

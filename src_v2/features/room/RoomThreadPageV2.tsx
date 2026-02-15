@@ -91,6 +91,50 @@ function isImageUrl(url: string) {
 }
 
 function renderBodyWithLinks(body: string) {
+  const imageMarkdownRegex = /!\[[^\]]*]\((https?:\/\/[^\s)]+)\)/g;
+  const imageMatches = Array.from(body.matchAll(imageMarkdownRegex));
+  if (imageMatches.length > 0) {
+    const rendered: ReactNode[] = [];
+    let cursor = 0;
+    let keyIndex = 0;
+
+    for (const match of imageMatches) {
+      const fullMatch = match[0];
+      const imageUrl = match[1];
+      const start = match.index ?? 0;
+      const end = start + fullMatch.length;
+
+      if (start > cursor) {
+        const before = body.slice(cursor, start);
+        rendered.push(
+          <span key={`md-text-${keyIndex++}`}>{renderBodyWithLinks(before)}</span>
+        );
+      }
+
+      rendered.push(
+        <span key={`md-image-${keyIndex++}`} className="my-3 block">
+          <a href={imageUrl} target="_blank" rel="noreferrer noopener">
+            <img
+              src={imageUrl}
+              alt="attachment"
+              className="max-h-80 max-w-full rounded-lg border border-slate-200 object-contain"
+            />
+          </a>
+        </span>
+      );
+
+      cursor = end;
+    }
+
+    if (cursor < body.length) {
+      rendered.push(
+        <span key={`md-text-${keyIndex++}`}>{renderBodyWithLinks(body.slice(cursor))}</span>
+      );
+    }
+
+    return rendered;
+  }
+
   const regex = /(https?:\/\/[^\s]+)/g;
   const elements: ReactNode[] = [];
   let lastIndex = 0;
@@ -204,7 +248,7 @@ async function handleImagePasteToField(
     const imageUrl = await resolveImageUrl({
       storageId: uploadPayload.storageId as Id<"_storage">,
     });
-    const inserted = `${start > 0 ? "\n" : ""}${imageUrl}\n`;
+    const inserted = `${start > 0 ? "\n" : ""}![貼り付け画像](${imageUrl})\n`;
     setField((previous) => `${previous.slice(0, start)}${inserted}${previous.slice(end)}`);
   } catch {
     onError("画像の貼り付けに失敗しました");
