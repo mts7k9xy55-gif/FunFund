@@ -291,83 +291,99 @@ export const getThread = query({
     if (!normalizedThreadId) {
       return null;
     }
-    const user = await getUserOrNull(ctx);
-    if (!user) {
-      return null;
-    }
-    const thread = await ctx.db.get(normalizedThreadId);
+    try {
+      const user = await getUserOrNull(ctx);
+      if (!user) {
+        return null;
+      }
+      const thread = await ctx.db.get(normalizedThreadId);
 
-    if (!thread) {
-      return null;
-    }
+      if (!thread) {
+        return null;
+      }
 
-    // メンバーかチェック
-    const memberships = await ctx.db
-      .query("roomMembers")
-      .withIndex("by_room", (q) => q.eq("roomId", thread.roomId))
-      .collect();
-    
-    const membership = memberships.find((m) => m.userId === user._id);
+      // メンバーかチェック
+      const memberships = await ctx.db
+        .query("roomMembers")
+        .withIndex("by_room", (q) => q.eq("roomId", thread.roomId))
+        .collect();
 
-    if (!membership) {
-      return null;
-    }
+      const membership = memberships.find((m) => m.userId === user._id);
 
-    // 判断一覧
-    const decisionsRaw = await ctx.db
-      .query("decisions")
-      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-      .collect();
+      if (!membership) {
+        return null;
+      }
 
-    // 旧decision由来のreason messageは「提案理由」表示から除外する
-    const legacyDecisionReasonIds = new Set(
-      decisionsRaw.map((decision) => decision.reasonMessageId)
-    );
+      // データ不整合があってもスレッド画面を落とさない
+      let decisionsRaw: any[] = [];
+      try {
+        decisionsRaw = await ctx.db
+          .query("decisions")
+          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+          .collect();
+      } catch {
+        decisionsRaw = [];
+      }
 
-    // メッセージ一覧（非表示返信は owner/送信者のみ閲覧可能）
-    const messagesRaw = await ctx.db
-      .query("messages")
-      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-      .collect();
-    const messages = messagesRaw.filter((message) => {
-      if (
-        message.kind === "reason" &&
-        legacyDecisionReasonIds.has(message._id)
-      ) {
+      const legacyDecisionReasonIds = new Set(
+        decisionsRaw.map((decision) => decision.reasonMessageId)
+      );
+
+      let messagesRaw: any[] = [];
+      try {
+        messagesRaw = await ctx.db
+          .query("messages")
+          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+          .collect();
+      } catch {
+        messagesRaw = [];
+      }
+      const messages = messagesRaw.filter((message) => {
+        if (
+          message.kind === "reason" &&
+          legacyDecisionReasonIds.has(message._id)
+        ) {
+          return false;
+        }
+
+        if (!message.hiddenAt) {
+          return true;
+        }
+        return membership.role === "owner" || message.createdBy === user._id;
+      });
+
+      const decisions = decisionsRaw.filter((decision) => {
+        const visibility = decision.visibility ?? "private";
+        if (decision.createdBy === user._id) {
+          return true;
+        }
+        if (visibility === "public") {
+          return true;
+        }
+        if (visibility === "shared_to_target" && decision.targetUserId === user._id) {
+          return true;
+        }
         return false;
+      });
+
+      let executions: any[] = [];
+      try {
+        executions = await ctx.db
+          .query("executions")
+          .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
+          .collect();
+      } catch {
+        executions = [];
       }
 
-      if (!message.hiddenAt) {
-        return true;
-      }
-      return membership.role === "owner" || message.createdBy === user._id;
-    });
-
-    const decisions = decisionsRaw.filter((decision) => {
-      const visibility = decision.visibility ?? "private";
-      if (decision.createdBy === user._id) {
-        return true;
-      }
-      if (visibility === "public") {
-        return true;
-      }
-      if (visibility === "shared_to_target" && decision.targetUserId === user._id) {
-        return true;
-      }
-      return false;
-    });
-
-    // 実行ログ一覧
-    const executions = await ctx.db
-      .query("executions")
-      .withIndex("by_thread", (q) => q.eq("threadId", normalizedThreadId))
-      .collect();
-
-    return {
-      thread,
-      messages,
-      decisions,
-      executions,
-    };
+      return {
+        thread,
+        messages,
+        decisions,
+        executions,
+      };
+    } catch {
+      return null;
+    }
   },
 });
